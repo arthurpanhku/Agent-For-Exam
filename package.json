@@ -4,6 +4,14 @@
   "private": true,
   "license": "MIT",
   "description": "StudyForge — AI-assisted study workspace with structured retrieval",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arthurpanhku/studyforge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/arthurpanhku/studyforge/issues"
+  },
+  "homepage": "https://github.com/arthurpanhku/studyforge#readme",
   "dependencies": {
     "pagedjs": "^0.4.3"
   }

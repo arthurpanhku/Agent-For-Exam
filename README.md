@@ -120,6 +120,17 @@ studyforge/
 
 ---
 
+## Repository
+
+- **GitHub**: [https://github.com/arthurpanhku/studyforge](https://github.com/arthurpanhku/studyforge)
+
+```bash
+git clone https://github.com/arthurpanhku/studyforge.git
+cd studyforge
+```
+
+---
+
 ## License
 
 StudyForge application sources are released under the **MIT License** (`LICENSE` in the repo root).
