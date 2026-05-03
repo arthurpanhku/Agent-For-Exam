@@ -6,6 +6,8 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     container_name: agent-for-exam-backend
+    environment:
+      AFE_API_KEY: ${AFE_API_KEY:-}
     ports:
       - "8000:8000"
     volumes:
@@ -19,6 +21,8 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
     container_name: agent-for-exam-frontend
+    environment:
+      AFE_API_KEY: ${AFE_API_KEY:-}
     ports:
       - "80:80"
     depends_on:

@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -8,12 +8,19 @@ from app.api import settings as settings_api
 from app.api import subject_documents
 from app.api import exams
 from app.services.config_service import config_service
+from app.middleware.http import APIKeyMiddleware, RequestIDMiddleware
+from app.openapi import build_custom_openapi
+from app.exception_handlers import http_exception_handler, unhandled_exception_handler
 
 app = FastAPI(
     title="Agent for Exam",
     description="基于 LightRAG 的 Web 应用程序",
     version="1.0.0"
 )
+
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
+app.openapi = build_custom_openapi(app)
 
 # 配置日志
 import logging
@@ -30,15 +37,19 @@ logging.basicConfig(
 # 确保 app 命名空间的日志级别为 INFO
 logging.getLogger("app").setLevel(logging.INFO)
 
-# CORS 配置
+# CORS 配置（最先注册的在 Starlette 栈中最靠近路由）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,  # 使用明确配置的端口列表
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],  # 暴露所有响应头，包括图片相关的
+    expose_headers=["*", "X-Request-ID"],  # 便于前端读取关联 ID
 )
+
+# 可选 API Key（内侧）；最外层为请求 ID，便于拒绝请求也带上关联 ID
+app.add_middleware(APIKeyMiddleware)
+app.add_middleware(RequestIDMiddleware)
 
 # 挂载静态文件服务（用于访问上传的图片）
 data_dir = Path(settings.data_dir)

@@ -147,6 +147,13 @@ AFE_RELOAD=1 ./start_all.sh
 当前默认不依赖额外的后端环境变量即可完成基础功能，常用配置（统一 API Key、各场景模型等）都通过前端「设置」页面管理。
 如需为后端增加其他自定义配置，可在 `backend/.env` 中按需添加对应键值，应用会通过 `pydantic-settings` 自动加载。
 
+**API 访问控制（生产环境建议开启）**
+
+- 在 `backend/.env` 或进程环境中设置 **`AFE_API_KEY`**（非空）后，除 `OPTIONS` 预检与 **`GET /health`** 外，所有请求必须在请求头携带 **`X-API-Key`**，与 `AFE_API_KEY` 一致（包括静态挂载路径 `/uploads`、`/data`，以及 `/docs`、`/openapi.json`）。
+- **Docker Compose**：在项目根目录 `.env` 或 shell 中导出相同的 `AFE_API_KEY`；`docker-compose.yml` / `docker-compose.dev.yml` 会将其传入后端，并由前端镜像内的 **`nginx.conf.template`** 在反向代理 `/api/` 时注入 `X-API-Key`（避免浏览器暴露密钥；本地直连后端调试时可不设）。
+- **本地前后端分离**：若前端直连 `http://localhost:8000`，可在 `frontend/.env.local` 设置 **`VITE_AFE_API_KEY`**（与后端一致），详见 `frontend/.env.example`。
+- 所有 JSON 错误响应可携带 **`request_id`**（并与响应头 **`X-Request-ID`** 对齐）；未捕获异常与 **5xx** 的 **`detail`** 对客户端统一为「Internal server error」，详细信息仅写入服务端日志。
+
 ### 4. Docker 开发调试（跨平台，可选）
 
 如果希望在 Docker 中进行日常开发调试（而不是本机直接运行 Python / Node），可以使用 `docker-compose.dev.yml`。这仍然是 Docker 方案，不是 Windows 本地启动方式。

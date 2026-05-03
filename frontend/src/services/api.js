@@ -2,6 +2,7 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+const AFE_API_KEY = import.meta.env.VITE_AFE_API_KEY || ''
 
 // 创建 axios 实例
 const api = axios.create({
@@ -15,6 +16,9 @@ const api = axios.create({
 // 请求拦截器
 api.interceptors.request.use(
   config => {
+    if (AFE_API_KEY) {
+      config.headers['X-API-Key'] = AFE_API_KEY
+    }
     // 开发环境下打印请求日志
     if (import.meta.env.DEV) {
       console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, config.data || config.params)
@@ -71,7 +75,15 @@ api.interceptors.response.use(
           errorMessage = data?.detail || '资源不存在'
           break
         case 500:
-          errorMessage = data?.detail || '服务器内部错误'
+          errorMessage =
+            typeof data?.detail === 'string'
+              ? data.detail
+              : data?.detail != null
+                ? JSON.stringify(data.detail)
+                : '服务器内部错误'
+          if (data?.request_id) {
+            errorMessage = `${errorMessage}（请求 ID: ${data.request_id}）`
+          }
           break
         default:
           errorMessage = data?.detail || `服务器错误 (${status})`

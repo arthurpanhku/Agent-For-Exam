@@ -30,6 +30,7 @@ ENV/
 env.bak/
 venv.bak/
 .venv
+.venv_ci/
 .venv_*/
 venv_*/
 
@@ -128,7 +129,7 @@ Desktop.ini
 .chunk_analysis_*.json
 debug_*.py
 analyze_*.py
-test_*.py
+/test_*.py
 
 # 项目特定
 backend/chunk_analysis_*.json

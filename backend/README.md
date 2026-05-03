@@ -80,6 +80,20 @@ cp .env.example .env
 
 ## 测试
 
+### 自动化测试
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt -r requirements-dev.txt
+pytest
+```
+
+契约测试覆盖：`GET /health`（免 API Key）、可选 **`AFE_API_KEY`** 时的鉴权、`openapi.json` 中的 **`ApiKeyAuth`** 方案，以及未处理异常的响应脱敏。
+
+### 手动冒烟
+
 访问以下 URL 测试服务是否正常：
 
 - http://localhost:8000/ - 根路径

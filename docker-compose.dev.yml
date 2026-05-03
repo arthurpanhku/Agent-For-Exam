@@ -6,6 +6,8 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     container_name: agent-for-exam-backend-dev
+    environment:
+      AFE_API_KEY: ${AFE_API_KEY:-}
     ports:
       - "8000:8000"
     volumes:
@@ -29,6 +31,7 @@ services:
     environment:
       # 告诉 Vite 在 Docker 开发模式下将 /api 代理到 backend-dev 容器
       - VITE_DEV_API_PROXY_TARGET=http://backend-dev:8000
+      - VITE_AFE_API_KEY=${AFE_API_KEY:-}
     ports:
       - "5173:5173"
     volumes:

@@ -29,7 +29,7 @@ tiktoken
 json-repair
 tenacity
 pypinyin
-httpx
+httpx>=0.24,<0.28
 aiohttp
 openai
 ollama
