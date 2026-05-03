@@ -9,6 +9,10 @@ const devApiTarget = process.env.VITE_DEV_API_PROXY_TARGET || 'http://localhost:
 export default defineConfig({
   plugins: [vue()],
   server: {
+    fs: {
+      // Allow importing Markdown from repo `docs/` (dataset description & evaluation plan).
+      allow: ['..']
+    },
     port: 5173,
     proxy: {
       '/api': {

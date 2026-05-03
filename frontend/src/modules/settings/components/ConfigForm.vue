@@ -49,22 +49,34 @@ const props = defineProps({
 
 const emit = defineEmits(['update'])
 
+const SILICONFLOW_HOST = 'https://api.siliconflow.cn/v1'
+const OPENAI_DEFAULT_HOST = 'https://api.deepseek.com'
+
+function defaultHostForBinding(binding) {
+  if (binding === 'siliconflow') return SILICONFLOW_HOST
+  if (binding === 'openai') return OPENAI_DEFAULT_HOST
+  return ''
+}
+
 const localConfig = ref({
   binding: props.defaultBinding,
-  model: ''
+  model: '',
+  host: defaultHostForBinding(props.defaultBinding)
 })
 
 const saving = ref(false)
 
 const availableModels = computed(() => {
-  return props.modelLists['siliconflow'] || []
+  return props.modelLists[props.defaultBinding] || []
 })
 
 watch(() => props.config, (newConfig) => {
   if (newConfig) {
+    const binding = props.defaultBinding
     localConfig.value = {
-      binding: props.defaultBinding,
-      model: newConfig.model || ''
+      binding,
+      model: newConfig.model || '',
+      host: (newConfig.host || '').trim() || defaultHostForBinding(binding)
     }
   }
 }, { immediate: true })
@@ -74,14 +86,18 @@ function handleModelChange() {
 
 function handleSave() {
   saving.value = true
-  
-  const updateData = {
-    binding: props.defaultBinding,
+
+  const binding = props.defaultBinding
+  const host =
+    binding === 'siliconflow'
+      ? SILICONFLOW_HOST
+      : (localConfig.value.host || '').trim() || OPENAI_DEFAULT_HOST
+
+  emit('update', {
+    binding,
     model: localConfig.value.model,
-    host: 'https://api.siliconflow.cn/v1'
-  }
-  
-  emit('update', updateData)
+    host
+  })
   saving.value = false
 }
 </script>

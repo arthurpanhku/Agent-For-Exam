@@ -42,6 +42,7 @@ from app.services.conversation_service import ConversationService
 from app.services.document_service import DocumentService
 from app.services.lightrag_service import LightRAGService
 from app.services.memory_service import MemoryService
+from app.services.study_enhancements import augment_system_prompt_for_style, build_citation_analysis
 import app.config as config
 import aiohttp
 
@@ -237,7 +238,10 @@ class AgentService:
         conversation_id: str,
         user_query: str,
         conversation_history: Optional[List[Dict]] = None,
-        max_rounds: int = 15
+        max_rounds: int = 15,
+        *,
+        chat_style: str = "default",
+        include_citation_analysis: bool = True,
     ) -> AsyncIterator[Dict[str, Any]]:
         """处理用户查询（Agent模式，支持多轮工具调用）
         
@@ -246,6 +250,8 @@ class AgentService:
             user_query: 用户查询
             conversation_history: 对话历史
             max_rounds: 最大工具调用轮次（默认5轮）
+            chat_style: default | socratic（考我模式）
+            include_citation_analysis: 是否在流程末尾输出引用可信度分析
             
         Yields:
             流式响应数据
@@ -255,7 +261,11 @@ class AgentService:
         
         # 2. 构建系统提示词
         document_context = self._build_document_context(conversation_id)
-        system_prompt = self._build_agent_system_prompt(document_context=document_context)
+        system_prompt = augment_system_prompt_for_style(
+            self._build_agent_system_prompt(document_context=document_context),
+            chat_style,
+        )
+        last_kg_raw: Optional[Dict[str, Any]] = None
         
         # 3. 获取历史对话
         if conversation_history is None:
@@ -456,7 +466,11 @@ class AgentService:
             ):
                 # 先 yield 给前端（用于实时显示）
                 yield result
-                
+                if result.get("type") == "tool_result" and result.get("tool_name") == "query_knowledge_graph":
+                    extracted = self._extract_kg_raw_from_tool_result(result)
+                    if extracted is not None:
+                        last_kg_raw = extracted
+
                 # 收集工具结果
                 if result["type"] == "tool_result":
                     tool_results.append(result)
@@ -577,7 +591,25 @@ class AgentService:
                 "type": "error",
                 "content": f"达到最大工具调用轮次限制 ({max_rounds} 轮)，请简化您的请求"
             }
-    
+        else:
+            if include_citation_analysis and last_kg_raw is not None:
+                yield {
+                    "type": "citation_analysis",
+                    "content": build_citation_analysis(last_kg_raw),
+                }
+
+    def _extract_kg_raw_from_tool_result(self, item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """从 query_knowledge_graph 工具结果中取出 raw_data（兼容 executor 包装层）。"""
+        ex = item.get("result")
+        if not isinstance(ex, dict):
+            return None
+        inner = ex.get("result")
+        if isinstance(inner, dict) and inner.get("raw_data") is not None:
+            rd = inner.get("raw_data")
+            return rd if isinstance(rd, dict) else None
+        rd = ex.get("raw_data")
+        return rd if isinstance(rd, dict) else None
+
     async def _call_llm_with_tools_round(
         self,
         conversation_id: str,

@@ -30,30 +30,31 @@ class Settings(BaseSettings):
     lightrag_doc_status_storage: str = "JsonDocStatusStorage"
     
     # LLM 配置（全局默认，向后兼容）
+    # DeepSeek OpenAI-compatible API: https://api-docs.deepseek.com/
     llm_binding: str = "openai"
-    llm_model: str = "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"
+    llm_model: str = "deepseek-v4-pro"
     llm_binding_api_key: str = ""  # 必需：从环境变量读取，请配置 LLM_BINDING_API_KEY
-    llm_binding_host: str = "https://api.siliconflow.cn/v1"
+    llm_binding_host: str = "https://api.deepseek.com"
     max_async: int = 16 
     timeout: int = 400  # 增加超时时间，避免复杂内容处理超时（从150增加到400）
     
     # 分场景 LLM 配置（知识图谱抽取）
     kg_llm_binding: str = "openai"
-    kg_llm_model: str = "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"
+    kg_llm_model: str = "deepseek-v4-pro"
     kg_llm_binding_api_key: str = ""  # 从配置服务读取（加密存储）
-    kg_llm_binding_host: str = "https://api.siliconflow.cn/v1"
+    kg_llm_binding_host: str = "https://api.deepseek.com"
     
     # 分场景 LLM 配置（聊天对话）
     chat_llm_binding: str = "openai"
-    chat_llm_model: str = "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"
+    chat_llm_model: str = "deepseek-v4-pro"
     chat_llm_binding_api_key: str = ""  # 从配置服务读取（加密存储）
-    chat_llm_binding_host: str = "https://api.siliconflow.cn/v1"
+    chat_llm_binding_host: str = "https://api.deepseek.com"
     
     # 分场景 LLM 配置（思维导图生成）
     mindmap_llm_binding: str = "openai"
-    mindmap_llm_model: str = "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"
+    mindmap_llm_model: str = "deepseek-v4-pro"
     mindmap_llm_binding_api_key: str = ""  # 从配置服务读取（加密存储）
-    mindmap_llm_binding_host: str = "https://api.siliconflow.cn/v1"
+    mindmap_llm_binding_host: str = "https://api.deepseek.com"
     
     # Embedding 配置
     embedding_binding: str = "siliconflow"

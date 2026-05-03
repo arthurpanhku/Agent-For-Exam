@@ -53,6 +53,7 @@
         <ConfigForm 
           :config="configs.knowledge_graph"
           :model-lists="modelLists"
+          default-binding="openai"
           @update="handleUpdate('knowledge_graph', $event)"
         />
       </el-tab-pane>
@@ -62,6 +63,7 @@
         <ConfigForm 
           :config="configs.chat"
           :model-lists="modelLists"
+          default-binding="openai"
           @update="handleUpdate('chat', $event)"
         />
       </el-tab-pane>
@@ -71,6 +73,7 @@
         <ConfigForm 
           :config="configs.mindmap"
           :model-lists="modelLists"
+          default-binding="openai"
           @update="handleUpdate('mindmap', $event)"
         />
       </el-tab-pane>

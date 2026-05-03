@@ -23,6 +23,33 @@
       </div>
     </header>
 
+    <!-- Dataset description (per subject, persisted server-side) -->
+    <section class="resource-section dataset-desc-section">
+      <div class="section-header">
+        <h3 class="section-title">
+          <el-icon><Notebook /></el-icon>
+          Dataset description
+        </h3>
+        <p class="section-desc">
+          Subject-specific notes on corpus sources, languages, exams, privacy, and evaluation goals (for reports and audits).
+          The full guide lives under <strong>Dataset &amp; Evaluation</strong> in the sidebar.
+        </p>
+      </div>
+      <el-input
+        v-model="datasetDescriptionDraft"
+        type="textarea"
+        :rows="6"
+        maxlength="20000"
+        show-word-limit
+        placeholder="Describe this knowledge base for documentation and evaluation purposes..."
+      />
+      <div class="dataset-desc-actions">
+        <el-button type="primary" :loading="datasetSaving" @click="saveDatasetDescription">
+          Save dataset description
+        </el-button>
+      </div>
+    </section>
+
     <!-- ========== 上半部分：讲义/教材 (Courseware) ========== -->
     <section class="resource-section courseware-section">
       <div class="section-header">
@@ -343,7 +370,7 @@
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, UploadFilled, ChatLineRound, Folder, Edit, More, DataAnalysis } from '@element-plus/icons-vue'
+import { Document, UploadFilled, ChatLineRound, Folder, Edit, More, DataAnalysis, Notebook } from '@element-plus/icons-vue'
 import { useConversationStore } from '../modules/chat/store/conversationStore'
 import { useDocumentStore } from '../modules/documents/store/documentStore'
 import { useSubjectStore } from '../modules/subjects/store/subjectStore'
@@ -378,6 +405,33 @@ const editYearValue = ref('')
 // 试题分析弹窗：勾选试卷
 const examAnalysisDialogVisible = ref(false)
 const selectedExamIds = ref([])
+
+const datasetDescriptionDraft = ref('')
+const datasetSaving = ref(false)
+
+watch(
+  () => subjectStore.currentSubject,
+  (sub) => {
+    datasetDescriptionDraft.value = sub?.dataset_description ?? ''
+  },
+  { immediate: true }
+)
+
+async function saveDatasetDescription() {
+  const id = subjectId.value
+  if (!id) return
+  datasetSaving.value = true
+  try {
+    await subjectStore.updateSubject(id, { dataset_description: datasetDescriptionDraft.value })
+    ElMessage.success('Dataset description saved')
+  } catch (error) {
+    console.error(error)
+    ElMessage.error('Failed to save dataset description')
+  } finally {
+    datasetSaving.value = false
+  }
+}
+
 const analyzableExams = computed(() =>
   currentExams.value.filter((e) => e.status === 'completed')
 )
@@ -818,6 +872,17 @@ const formatContent = (content, examId) => {
 /* Section */
 .resource-section {
   margin-bottom: 24px;
+}
+
+.dataset-desc-section {
+  padding: 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+
+.dataset-desc-actions {
+  margin-top: 12px;
 }
 
 .section-header {

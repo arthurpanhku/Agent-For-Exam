@@ -1,15 +1,25 @@
 import { api } from '../../../services/api'
 
 class ChatService {
-  async queryStream(conversationId, query, mode = 'naive', agentIntent, onChunk, signal) {
+  async queryStream(conversationId, query, mode = 'naive', agentIntent, onChunk, streamOptions = null) {
     const body = {
       query,
       mode,
       stream: true
     }
+    const signal =
+      streamOptions && typeof streamOptions === 'object' ? streamOptions.signal : undefined
     
     if (agentIntent) {
       // 预留扩展
+    }
+    if (streamOptions && typeof streamOptions === 'object') {
+      if (streamOptions.chatStyle) {
+        body.chat_style = streamOptions.chatStyle
+      }
+      if (streamOptions.includeCitationAnalysis != null) {
+        body.include_citation_analysis = streamOptions.includeCitationAnalysis
+      }
     }
     
     const base = import.meta.env.VITE_API_BASE_URL || ''
@@ -72,6 +82,8 @@ class ChatService {
               onChunk({ type: 'mindmap_content', content: parsed.mindmap_content })
             } else if (parsed.error) {
               onChunk({ type: 'error', content: parsed.error })
+            } else if (parsed.citation_analysis !== undefined) {
+              onChunk({ type: 'citation_analysis', content: parsed.citation_analysis })
             }
           } catch (error) {
             console.error('解析流式响应失败:', line, error)
@@ -83,10 +95,18 @@ class ChatService {
     if (buffer.trim() && (!signal || !signal.aborted)) {
       try {
         const parsed = JSON.parse(buffer)
-        if (parsed.response) {
-          onChunk(parsed.response)
+        if (parsed.response !== undefined) {
+          if (typeof parsed.response === 'string') {
+            onChunk({ type: 'response', content: parsed.response })
+          } else if (parsed.response && typeof parsed.response === 'object') {
+            onChunk(parsed.response)
+          } else {
+            onChunk({ type: 'response', content: String(parsed.response) })
+          }
         } else if (parsed.warning) {
           onChunk({ type: 'warning', content: parsed.warning })
+        } else if (parsed.citation_analysis !== undefined) {
+          onChunk({ type: 'citation_analysis', content: parsed.citation_analysis })
         }
       } catch (error) {
         console.error('解析最终数据块失败:', buffer, error)
@@ -99,13 +119,17 @@ class ChatService {
     return response
   }
   
-  async saveMessage(conversationId, query, answer, toolCalls = null, streamItems = null) {
-    await api.post(`/api/conversations/${conversationId}/messages`, {
+  async saveMessage(conversationId, query, answer, toolCalls = null, streamItems = null, citationAnalysis = null) {
+    const payload = {
       query,
       answer,
       tool_calls: toolCalls,
       stream_items: streamItems
-    })
+    }
+    if (citationAnalysis != null) {
+      payload.citation_analysis = citationAnalysis
+    }
+    await api.post(`/api/conversations/${conversationId}/messages`, payload)
   }
   
   async saveDocMessage(conversationId, type, filename, pageNumber, fileExtension, fileId, imageUrl = null, baseTimestamp = null) {

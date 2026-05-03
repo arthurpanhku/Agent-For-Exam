@@ -33,12 +33,14 @@ class SubjectService {
     return response
   }
 
-  async updateSubject(subjectId, name = null, description = null) {
-    const response = await api.patch(`/api/subjects/${subjectId}`, {
-      name: name || undefined,
-      description: description || undefined
-    })
-    return response
+  async updateSubject(subjectId, patch = {}) {
+    const body = {}
+    for (const key of ['name', 'description', 'dataset_description']) {
+      if (Object.prototype.hasOwnProperty.call(patch, key)) {
+        body[key] = patch[key]
+      }
+    }
+    return api.patch(`/api/subjects/${subjectId}`, body)
   }
 
   async deleteSubject(subjectId) {

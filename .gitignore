@@ -76,8 +76,10 @@ backend/*.json
 backend/docs/
 backend/test/
 
-# 根目录文档
-docs/
+# Root docs (mostly generated assets); track canonical dataset guide + English report deliverable
+docs/**
+!docs/DATASET_AND_EVALUATION.md
+!docs/StudyForge_Final_Project_Report_EN.docx
 # 加密密钥和配置文件（敏感信息）
 backend/data/.encryption_key
 backend/data/llm_config.json

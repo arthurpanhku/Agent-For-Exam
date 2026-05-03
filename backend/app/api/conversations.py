@@ -626,6 +626,7 @@ class MessageRequest(BaseModel):
     answer: str
     tool_calls: Optional[List[dict]] = None  # 工具调用信息（可选）
     stream_items: Optional[List[dict]] = None  # 流式输出项（工具调用和文本的混合顺序，可选）
+    citation_analysis: Optional[Dict[str, Any]] = None  # 引用可信度与冲突提示（可选）
 
 class MessageResponse(BaseModel):
     role: str
@@ -633,6 +634,7 @@ class MessageResponse(BaseModel):
     timestamp: Optional[str] = None  # 对于 doc-* 消息，timestamp 可以为空
     streamItems: Optional[List[dict]] = None  # 流式输出项（工具调用和文本的混合顺序，可选）
     toolCalls: Optional[List[dict]] = None  # 工具调用信息（向后兼容，可选）
+    citationAnalysis: Optional[Dict[str, Any]] = None  # 引用可信度与冲突提示（可选）
     # doc-* 消息的额外字段
     type: Optional[str] = None  # 'doc-highlight' 或 'doc-image'
     filename: Optional[str] = None
@@ -691,6 +693,7 @@ async def get_messages(conversation_id: str):
             # doc-* 消息不需要 streamItems 和 toolCalls
             converted_msg['streamItems'] = None
             converted_msg['toolCalls'] = None
+            converted_msg['citationAnalysis'] = None
             # 确保有 content 和 timestamp 字段（即使为空）
             if 'content' not in converted_msg:
                 converted_msg['content'] = ""
@@ -707,11 +710,16 @@ async def get_messages(conversation_id: str):
         if 'tool_calls' in converted_msg:
             converted_msg['toolCalls'] = converted_msg['tool_calls']
             del converted_msg['tool_calls']
+        if 'citation_analysis' in converted_msg:
+            converted_msg['citationAnalysis'] = converted_msg['citation_analysis']
+            del converted_msg['citation_analysis']
         # 确保所有消息都包含 streamItems 和 toolCalls 字段（即使为 None），以便 Pydantic 正确序列化
         if 'streamItems' not in converted_msg:
             converted_msg['streamItems'] = None
         if 'toolCalls' not in converted_msg:
             converted_msg['toolCalls'] = None
+        if 'citationAnalysis' not in converted_msg:
+            converted_msg['citationAnalysis'] = None
         
         # 验证必需字段
         if 'role' not in converted_msg:
@@ -793,7 +801,8 @@ async def save_message(conversation_id: str, request: MessageRequest):
         request.query, 
         request.answer,
         tool_calls=request.tool_calls,
-        stream_items=request.stream_items
+        stream_items=request.stream_items,
+        citation_analysis=request.citation_analysis,
     )
     
     if not success:

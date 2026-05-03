@@ -17,6 +17,10 @@ logger = get_logger("app.graph")
 class QueryRequest(BaseModel):
     query: str
     mode: Optional[str] = "naive"  # naive/local/global/mix/agent
+    # default: 直接答疑；socratic: 考我/苏格拉底式（agent 模式生效）
+    chat_style: Optional[str] = "default"
+    # 流式结束后附加引用可信度与冲突提示（额外一次图谱检索，agent 模式在工具链内解析）
+    include_citation_analysis: Optional[bool] = True
 
 class QueryResponse(BaseModel):
     conversation_id: str
@@ -323,7 +327,9 @@ async def query_knowledge_graph_stream(conversation_id: str, request: QueryReque
                 async for chunk in agent_service.process_user_query(
                     conversation_id,
                     request.query,
-                    conversation_history=history
+                    conversation_history=history,
+                    chat_style=request.chat_style or "default",
+                    include_citation_analysis=request.include_citation_analysis if request.include_citation_analysis is not None else True,
                 ):
                     # 格式化输出
                     if chunk["type"] == "tool_call":
@@ -339,6 +345,8 @@ async def query_knowledge_graph_stream(conversation_id: str, request: QueryReque
                         yield f"{json.dumps({'mindmap_content': chunk['content']})}\n"
                     elif chunk["type"] == "response":
                         yield f"{json.dumps({'response': chunk['content']})}\n"
+                    elif chunk["type"] == "citation_analysis":
+                        yield f"{json.dumps({'citation_analysis': chunk.get('content')})}\n"
                     elif chunk["type"] == "error":
                         yield f"{json.dumps({'error': chunk['content']})}\n"
             except Exception as e:
@@ -636,7 +644,27 @@ async def query_knowledge_graph_stream(conversation_id: str, request: QueryReque
                     yield f"{json.dumps({'response': content})}\n"
                 else:
                     yield f"{json.dumps({'error': 'No response generated'})}\n"
-                    
+
+            if request.include_citation_analysis:
+                try:
+                    from app.services.study_enhancements import build_citation_analysis
+
+                    if service.check_has_documents_fast(conversation_id):
+                        conversation_service = ConversationService()
+                        conversation = conversation_service.get_conversation(conversation_id)
+                        subject_id = conversation.get("subject_id") if conversation else None
+                        rag_id = subject_id if subject_id else conversation_id
+                        raw_pack = await service.query_knowledge_raw(
+                            rag_id, request.query, request.mode, context_id=conversation_id
+                        )
+                        raw_data = (raw_pack.get("raw_data") or {}) if raw_pack.get("status") == "success" else {}
+                        yield f"{json.dumps({'citation_analysis': build_citation_analysis(raw_data)})}\n"
+                except Exception as cite_exc:
+                    logger.debug(
+                        "citation_analysis_skipped",
+                        extra={"conversation_id": conversation_id, "error": str(cite_exc)},
+                    )
+
         except Exception as e:
             error_msg = str(e)
             # 检测 401 错误

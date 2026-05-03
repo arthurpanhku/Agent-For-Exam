@@ -112,11 +112,20 @@ studyforge/
 ├── backend/           FastAPI services
 ├── frontend/          Vue 3 + Vite client
 ├── LightRAG/          Upstream LightRAG sources (see LightRAG/LICENSE)
-├── docs/              Feature notes & deep dives
+├── docs/              Feature notes & deep dives (incl. dataset description & evaluation plan)
 ├── scripts/           Operational helpers
 ├── docker-compose*.yml
 └── start_all.* / stop_all.*
 ```
+
+---
+
+## Dataset description & evaluation plan
+
+For coursework or technical memos that require explicit **dataset documentation** and an **evaluation playbook**:
+
+- **Canonical Markdown**: [`docs/DATASET_AND_EVALUATION.md`](docs/DATASET_AND_EVALUATION.md) (English: corpus scope, metadata checklist, phased metrics, milestones).
+- **In-app**: open **Dataset & Evaluation** in the sidebar (route `/dataset-evaluation`) for the same Markdown, plus editors for **per-subject dataset descriptions** (also editable on each subject’s Documents page).
 
 ---
 

@@ -24,6 +24,10 @@
             <el-icon><Collection /></el-icon>
             Home
           </router-link>
+          <router-link to="/dataset-evaluation" class="nav-item" active-class="active">
+            <el-icon><Notebook /></el-icon>
+            Dataset &amp; Evaluation
+          </router-link>
         </div>
 
         <!-- 知识库 + 对话列表 -->
@@ -126,7 +130,7 @@
 import { ref, watch, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { Collection, ArrowLeft, ArrowRight, ArrowDown, MoreFilled, DataAnalysis } from '@element-plus/icons-vue'
+import { Collection, Notebook, ArrowLeft, ArrowRight, ArrowDown, MoreFilled, DataAnalysis } from '@element-plus/icons-vue'
 import { useSubjectStore } from '../modules/subjects/store/subjectStore'
 import { useConversationStore } from '../modules/chat/store/conversationStore'
 

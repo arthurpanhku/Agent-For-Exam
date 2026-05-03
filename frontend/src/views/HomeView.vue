@@ -63,10 +63,10 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="rename">
-                    重命名
+                    Rename
                   </el-dropdown-item>
                   <el-dropdown-item command="delete" divided>
-                    删除
+                    Delete
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -131,12 +131,12 @@ const formatDate = (dateStr) => {
 
 const handleSubjectCommand = async (action, subject) => {
   if (action === 'rename') {
-    const { value: newName } = await ElMessageBox.prompt('请输入新的知识库名称', '重命名知识库', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    const { value: newName } = await ElMessageBox.prompt('Enter a new subject name', 'Rename subject', {
+      confirmButtonText: 'OK',
+      cancelButtonText: 'Cancel',
       inputValue: subject.name || '',
       inputPattern: /\S+/,
-      inputErrorMessage: '名称不能为空'
+      inputErrorMessage: 'Name cannot be empty'
     }).catch(() => ({ value: null }))
     
     if (!newName) {
@@ -144,29 +144,29 @@ const handleSubjectCommand = async (action, subject) => {
     }
     
     try {
-      await subjectStore.updateSubject(subject.subject_id, newName)
-      ElMessage.success('知识库已重命名')
+      await subjectStore.updateSubject(subject.subject_id, { name: newName })
+      ElMessage.success('Subject renamed')
     } catch (error) {
       console.error('重命名失败:', error)
-      ElMessage.error('重命名失败')
+      ElMessage.error('Rename failed')
     }
   } else if (action === 'delete') {
     await ElMessageBox.confirm(
-      '删除后将无法恢复该知识库及其所有文档、对话和历史记录，确认删除？',
-      '删除知识库',
+      'This permanently deletes the subject, its documents, conversations, and history. Continue?',
+      'Delete subject',
       {
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
+        confirmButtonText: 'Delete',
+        cancelButtonText: 'Cancel',
         type: 'warning'
       }
     ).catch(() => {})
     
     try {
       await subjectStore.deleteSubject(subject.subject_id)
-      ElMessage.success('知识库已删除')
+      ElMessage.success('Subject deleted')
     } catch (error) {
       console.error('删除失败:', error)
-      ElMessage.error('删除失败')
+      ElMessage.error('Delete failed')
     }
   }
 }

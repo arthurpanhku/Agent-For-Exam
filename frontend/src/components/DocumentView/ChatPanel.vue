@@ -64,6 +64,10 @@
               <div class="message-text" v-html="formatMessageWithWarning(message.content)"></div>
             </template>
             
+            <CitationHintsBlock
+              v-if="message.citationAnalysis"
+              :data="message.citationAnalysis"
+            />
             <div class="message-time">{{ formatTime(message.timestamp) }}</div>
           </div>
         </div>
@@ -129,9 +133,49 @@
             <span v-if="currentStreamWarning" v-html="formatMarkdown('\n\n')"></span>
             <span class="streaming-cursor">|</span>
           </div>
+          <CitationHintsBlock
+            v-if="streamingCitationAnalysis"
+            :data="streamingCitationAnalysis"
+          />
         </div>
       </div>
     </div>
+
+    <el-dialog v-model="variantDialogVisible" title="变式题（绑定讲义检索）" width="560px" destroy-on-close>
+      <div class="variant-form">
+        <el-input v-model="variantTopic" type="textarea" :rows="2" placeholder="考查主题或知识点" />
+        <div class="variant-row">
+          <span class="variant-label">题量</span>
+          <el-input-number v-model="variantCount" :min="1" :max="10" size="small" />
+          <span class="variant-label">难度基调</span>
+          <el-select v-model="variantDifficulty" size="small" style="width: 120px">
+            <el-option label="偏易" value="easy" />
+            <el-option label="中等" value="medium" />
+            <el-option label="偏难" value="hard" />
+          </el-select>
+        </div>
+      </div>
+      <div v-if="variantQuestions.length" class="variant-results">
+        <div v-for="(q, qi) in variantQuestions" :key="qi" class="variant-card">
+          <div class="variant-meta">
+            <el-tag size="small" type="info">{{ q.difficulty || '—' }}</el-tag>
+            <el-tag size="small" class="ml6">{{ bloomLabel(q.bloom_level) }}</el-tag>
+          </div>
+          <div class="variant-stem">{{ q.stem }}</div>
+          <ul class="variant-options">
+            <li v-for="(opt, oi) in (q.options || [])" :key="oi">{{ opt }}</li>
+          </ul>
+          <div class="variant-answer-block">
+            <div><strong>答案：</strong>{{ q.answer }}</div>
+            <div v-if="q.rationale" class="variant-rationale">{{ q.rationale }}</div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="variantDialogVisible = false">关闭</el-button>
+        <el-button type="primary" :loading="variantLoading" @click="runVariantQuestions">生成</el-button>
+      </template>
+    </el-dialog>
     
     <!-- 输入区域 -->
     <div class="input-container">
@@ -182,6 +226,26 @@
         >
           <el-icon class="info-icon"><InfoFilled /></el-icon>
         </el-tooltip>
+        <el-radio-group
+          v-if="agentModeEnabled"
+          v-model="studyChatStyle"
+          size="small"
+          class="study-style-toggle"
+        >
+          <el-radio-button label="default">答疑</el-radio-button>
+          <el-radio-button label="socratic">考我</el-radio-button>
+        </el-radio-group>
+        <el-tooltip content="在回复结束后附加引用块可信度与跨文档冲突提示（基于图谱检索）" placement="top">
+          <el-switch
+            v-model="includeCitationAnalysis"
+            size="small"
+            class="citation-switch"
+            inline-prompt
+            active-text="引用"
+            inactive-text="关闭"
+            :disabled="!graphReady && !agentModeEnabled"
+          />
+        </el-tooltip>
       </div>
       
       <div class="input-area">
@@ -194,6 +258,14 @@
           @keydown.enter.shift.exact="handleNewLine"
         />
         <div class="input-actions">
+          <el-button
+            v-if="graphReady"
+            size="small"
+            @click="openVariantDialog"
+            :disabled="!convStore.currentConversationId || isStreaming"
+          >
+            变式题
+          </el-button>
           <el-button
             type="primary"
             :icon="Promotion"
@@ -221,6 +293,8 @@ import { useGraphStore } from '../../stores/graphStore'
 import ToolCallCard from './ToolCallCard.vue'
 import ToolCallInline from './ToolCallInline.vue'
 import { useDocumentStore } from '../../stores/documentStore'
+import { api } from '../../services/api'
+import CitationHintsBlock from './CitationHintsBlock.vue'
 
 // 配置 marked 选项
 marked.setOptions({
@@ -246,6 +320,15 @@ const streamingThinkCollapse = ref([]) // 流式输出时的think折叠状态（
 const graphReady = ref(false) // 知识图谱是否完全生成
 const graphStatusLoading = ref(false) // 检查知识图谱状态的加载状态
 const agentModeEnabled = ref(false) // 助手（工具）模式开关
+const studyChatStyle = ref('default') // default | socratic（与助手模式配合）
+const includeCitationAnalysis = ref(true)
+const streamingCitationAnalysis = ref(null)
+const variantDialogVisible = ref(false)
+const variantTopic = ref('')
+const variantCount = ref(3)
+const variantDifficulty = ref('medium')
+const variantLoading = ref(false)
+const variantQuestions = ref([])
 
 // 检查消息是否有有效内容
 const hasValidContent = (message) => {
@@ -397,10 +480,15 @@ const handleSend = async () => {
   currentStreamToolCalls.value = [] // 重置工具调用列表
   streamItems.value = [] // 重置混合内容数组
   streamingThinkCollapse.value = [] // 重置流式think折叠状态（默认折叠）
+  streamingCitationAnalysis.value = null
   
   try {
     // 如果 Agent 模式开启，使用 agent 模式
     const mode = agentModeEnabled.value ? "agent" : selectedMode.value
+    const streamOptions = {
+      chatStyle: agentModeEnabled.value ? studyChatStyle.value : 'default',
+      includeCitationAnalysis: includeCitationAnalysis.value
+    }
     
     await chatStore.queryStream(convStore.currentConversationId, query, mode, null, (chunk) => {
       // 处理 Agent 模式的特殊响应
@@ -572,6 +660,8 @@ const handleSend = async () => {
               content: chunk.content
             })
           }
+        } else if (chunk.type === 'citation_analysis') {
+          streamingCitationAnalysis.value = chunk.content || null
         }
       } else if (typeof chunk === 'string') {
         // 普通响应内容（非 Agent 模式）
@@ -580,7 +670,7 @@ const handleSend = async () => {
       nextTick(() => {
         scrollToBottom()
       })
-    })
+    }, streamOptions)
     
     // 流式结束，保存完整回复（包含警告提示）
     // 在提取内容之前，确保 currentStreamContent 中剩余的内容也被添加到 streamItems
@@ -631,6 +721,9 @@ const handleSend = async () => {
     
     const finalToolCalls = toolCallsFromStream.length > 0 ? toolCallsFromStream : 
                            (currentStreamToolCalls.value.length > 0 ? currentStreamToolCalls.value : undefined)
+    const citationSnapshot = streamingCitationAnalysis.value
+      ? JSON.parse(JSON.stringify(streamingCitationAnalysis.value))
+      : null
     
     if (fullContent || finalToolCalls) {
       const newMessageIndex = messages.value.length
@@ -639,6 +732,7 @@ const handleSend = async () => {
         content: fullContent,
         toolCalls: finalToolCalls,
         streamItems: streamItems.value.length > 0 ? [...streamItems.value] : undefined, // 保存 streamItems 以便后续显示
+        citationAnalysis: citationSnapshot || undefined,
         timestamp: Date.now()
       })
       
@@ -659,13 +753,15 @@ const handleSend = async () => {
         query, 
         fullContent,
         finalToolCalls,
-        streamItems.value.length > 0 ? [...streamItems.value] : null
+        streamItems.value.length > 0 ? [...streamItems.value] : null,
+        citationSnapshot
       )
     }
     
     currentStreamContent.value = ''
     currentStreamWarning.value = ''
     streamItems.value = [] // 重置混合内容数组
+    streamingCitationAnalysis.value = null
     streamingThinkCollapse.value = [] // 重置流式think折叠状态
   } catch (error) {
     console.error('查询失败:', error)
@@ -691,6 +787,64 @@ const handleAgentModeChange = (enabled) => {
     ElMessage.info('已启用助手模式：可按需调用工具完成任务')
   } else {
     ElMessage.info('已切换到普通模式')
+  }
+}
+
+watch(agentModeEnabled, (enabled) => {
+  if (!enabled) {
+    studyChatStyle.value = 'default'
+  }
+})
+
+const bloomLabel = (b) => {
+  const m = {
+    remember: '记忆',
+    understand: '理解',
+    apply: '应用',
+    analyze: '分析',
+    evaluate: '评价',
+    create: '创造'
+  }
+  const key = (b || '').toLowerCase()
+  return m[key] || b || '—'
+}
+
+const openVariantDialog = () => {
+  if (!convStore.currentConversationId) {
+    ElMessage.warning('请先选择对话')
+    return
+  }
+  variantTopic.value = inputText.value.trim() || variantTopic.value
+  variantQuestions.value = []
+  variantDialogVisible.value = true
+}
+
+const runVariantQuestions = async () => {
+  const tid = convStore.currentConversationId
+  const topic = (variantTopic.value || '').trim()
+  if (!tid || !topic) {
+    ElMessage.warning('请填写考查主题')
+    return
+  }
+  variantLoading.value = true
+  try {
+    const mode = agentModeEnabled.value ? 'mix' : selectedMode.value
+    const res = await api.post(`/api/conversations/${tid}/variant-questions`, {
+      topic,
+      mode: mode === 'agent' ? 'mix' : mode,
+      count: variantCount.value,
+      base_difficulty: variantDifficulty.value
+    })
+    variantQuestions.value = res.questions || []
+    if (!variantQuestions.value.length) {
+      ElMessage.info('未生成题目，请换主题或检查模型与检索配置')
+    }
+  } catch (e) {
+    const d = e?.response?.data?.detail
+    const msg = typeof d === 'string' ? d : (Array.isArray(d) ? d.map((x) => x.msg || x).join('; ') : (e?.message || '生成失败'))
+    ElMessage.error(msg)
+  } finally {
+    variantLoading.value = false
   }
 }
 
@@ -932,6 +1086,10 @@ const formatMarkdown = (text) => {
 
 .input-toolbar {
   margin-bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 0;
 }
 
 .input-area {
@@ -943,6 +1101,79 @@ const formatMarkdown = (text) => {
 .input-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.study-style-toggle {
+  margin-left: 8px;
+}
+
+.citation-switch {
+  margin-left: 4px;
+}
+
+.variant-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.variant-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.variant-label {
+  font-size: 13px;
+  color: #606266;
+}
+
+.variant-results {
+  margin-top: 16px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.variant-card {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fafafa;
+}
+
+.variant-meta {
+  margin-bottom: 8px;
+}
+
+.ml6 {
+  margin-left: 6px;
+}
+
+.variant-stem {
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.variant-options {
+  margin: 0 0 10px 16px;
+  padding: 0;
+  font-size: 13px;
+  color: #303133;
+}
+
+.variant-answer-block {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.5;
+}
+
+.variant-rationale {
+  margin-top: 6px;
 }
 
 /* Think 内容样式 */

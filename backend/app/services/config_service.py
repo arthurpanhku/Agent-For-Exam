@@ -92,9 +92,14 @@ class ConfigService:
             if config.settings.mindmap_llm_binding_api_key:
                 mindmap_api_key_encrypted = _encrypt_api_key(config.settings.mindmap_llm_binding_api_key)
             
-            # 默认使用硅基流动
-            default_binding = "siliconflow"
-            default_host = "https://api.siliconflow.cn/v1"
+            # LLM 场景默认 DeepSeek OpenAI 兼容端（https://api.deepseek.com）；嵌入/OCR 仍可走硅基流动
+            sf_host = "https://api.siliconflow.cn/v1"
+            llm_openai_binding = "openai"
+            llm_default_host = (
+                config.settings.chat_llm_binding_host
+                or config.settings.llm_binding_host
+                or "https://api.deepseek.com"
+            )
             
             # Embedding API Key（使用全局 LLM API Key 作为默认值）
             embedding_api_key_encrypted = ""
@@ -108,33 +113,33 @@ class ConfigService:
                     "siliconflow": _encrypt_api_key(default_api_key) if default_api_key else ""
                 },
                 "knowledge_graph": {
-                    "binding": default_binding,
+                    "binding": llm_openai_binding,
                     "model": config.settings.kg_llm_model or config.settings.llm_model or "",
-                    "host": config.settings.kg_llm_binding_host or config.settings.llm_binding_host or default_host,
+                    "host": config.settings.kg_llm_binding_host or llm_default_host,
                     "api_key_encrypted": kg_api_key_encrypted or (_encrypt_api_key(config.settings.llm_binding_api_key) if config.settings.llm_binding_api_key else "")
                 },
                 "chat": {
-                    "binding": default_binding,
+                    "binding": llm_openai_binding,
                     "model": config.settings.chat_llm_model or config.settings.llm_model or "",
-                    "host": config.settings.chat_llm_binding_host or config.settings.llm_binding_host or default_host,
+                    "host": config.settings.chat_llm_binding_host or llm_default_host,
                     "api_key_encrypted": chat_api_key_encrypted or (_encrypt_api_key(config.settings.llm_binding_api_key) if config.settings.llm_binding_api_key else "")
                 },
                 "mindmap": {
-                    "binding": default_binding,
+                    "binding": llm_openai_binding,
                     "model": config.settings.mindmap_llm_model or config.settings.llm_model or "",
-                    "host": config.settings.mindmap_llm_binding_host or config.settings.llm_binding_host or default_host,
+                    "host": config.settings.mindmap_llm_binding_host or llm_default_host,
                     "api_key_encrypted": mindmap_api_key_encrypted or (_encrypt_api_key(config.settings.llm_binding_api_key) if config.settings.llm_binding_api_key else "")
                 },
                 "embedding": {
                     "binding": config.settings.embedding_binding or "siliconflow",
                     "model": config.settings.embedding_model or "Qwen/Qwen3-Embedding-0.6B",
-                    "host": config.settings.embedding_binding_host or config.settings.llm_binding_host or default_host,
+                    "host": (config.settings.embedding_binding_host or sf_host),
                     "api_key_encrypted": embedding_api_key_encrypted
                 },
                 "ocr": {
                     "binding": "siliconflow",
                     "model": "PaddlePaddle/PaddleOCR-VL-1.5",
-                    "host": default_host,
+                    "host": sf_host,
                     "api_key_encrypted": _encrypt_api_key(config.settings.llm_binding_api_key) if config.settings.llm_binding_api_key else ""
                 },
                 "custom_models": {

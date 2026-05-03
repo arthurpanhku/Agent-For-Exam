@@ -11,6 +11,11 @@ const router = createRouter({
       component: HomeView
     },
     {
+      path: '/dataset-evaluation',
+      name: 'dataset-evaluation',
+      component: () => import('../views/DatasetEvaluationView.vue')
+    },
+    {
       path: '/subject/:id',
       name: 'subject-docs',
       component: SubjectDocsView

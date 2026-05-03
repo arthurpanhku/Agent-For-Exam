@@ -367,7 +367,15 @@ class ConversationService:
         
         return True
     
-    def add_message(self, conversation_id: str, query: str, answer: str, tool_calls: Optional[List[dict]] = None, stream_items: Optional[List[dict]] = None) -> bool:
+    def add_message(
+        self,
+        conversation_id: str,
+        query: str,
+        answer: str,
+        tool_calls: Optional[List[dict]] = None,
+        stream_items: Optional[List[dict]] = None,
+        citation_analysis: Optional[dict] = None,
+    ) -> bool:
         """添加消息到对话历史
         
         Args:
@@ -389,6 +397,7 @@ class ConversationService:
                     {"type": "tool_call", "toolName": "...", "arguments": {...}, "result": {...}, "status": "..."},
                     {"type": "text", "content": "..."}
                 ]
+            citation_analysis: 引用可信度与冲突提示（可选），与图谱检索 raw_data 分析一致的结构化对象
             
         Returns:
             是否成功
@@ -474,6 +483,8 @@ class ConversationService:
         # 如果有 stream_items，保存到消息中
         if stream_items:
             assistant_message["stream_items"] = stream_items
+        if citation_analysis is not None:
+            assistant_message["citation_analysis"] = citation_analysis
         messages.append(assistant_message)
         
         # 保存消息

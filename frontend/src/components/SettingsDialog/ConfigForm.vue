@@ -33,7 +33,6 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { ElMessage } from 'element-plus'
 
 const props = defineProps({
   config: {
@@ -53,24 +52,34 @@ const props = defineProps({
 
 const emit = defineEmits(['update'])
 
+const SILICONFLOW_HOST = 'https://api.siliconflow.cn/v1'
+const OPENAI_DEFAULT_HOST = 'https://api.deepseek.com'
+
+function defaultHostForBinding(binding) {
+  if (binding === 'siliconflow') return SILICONFLOW_HOST
+  if (binding === 'openai') return OPENAI_DEFAULT_HOST
+  return ''
+}
+
 const localConfig = ref({
-  binding: props.defaultBinding, // 使用传入的 binding
-  model: ''
+  binding: props.defaultBinding,
+  model: '',
+  host: defaultHostForBinding(props.defaultBinding)
 })
 
 const saving = ref(false)
 
-// 可用模型列表（固定使用硅基流动）
 const availableModels = computed(() => {
-  return props.modelLists['siliconflow'] || []
+  return props.modelLists[props.defaultBinding] || []
 })
 
-// 监听 props.config 变化，同步到本地
 watch(() => props.config, (newConfig) => {
   if (newConfig) {
+    const binding = props.defaultBinding
     localConfig.value = {
-      binding: props.defaultBinding,
-      model: newConfig.model || ''
+      binding,
+      model: newConfig.model || '',
+      host: (newConfig.host || '').trim() || defaultHostForBinding(binding)
     }
   }
 }, { immediate: true })
@@ -80,18 +89,20 @@ function handleModelChange() {
   // 可以在这里添加验证逻辑
 }
 
-// 保存配置
 function handleSave() {
   saving.value = true
-  
-  // 构建更新数据（使用配置的 binding，host 固定为硅基流动地址）
-  const updateData = {
-    binding: props.defaultBinding,
+
+  const binding = props.defaultBinding
+  const host =
+    binding === 'siliconflow'
+      ? SILICONFLOW_HOST
+      : (localConfig.value.host || '').trim() || OPENAI_DEFAULT_HOST
+
+  emit('update', {
+    binding,
     model: localConfig.value.model,
-    host: 'https://api.siliconflow.cn/v1' // 固定为硅基流动地址
-  }
-  
-  emit('update', updateData)
+    host
+  })
   saving.value = false
 }
 </script>

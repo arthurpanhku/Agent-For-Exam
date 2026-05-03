@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 import json
 import uuid
 
@@ -32,7 +32,12 @@ class SubjectService:
         with open(self.metadata_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
-    def create_subject(self, name: Optional[str] = None, description: Optional[str] = None) -> str:
+    def create_subject(
+        self,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        dataset_description: Optional[str] = None,
+    ) -> str:
         metadata = self._load_metadata()
 
         subject_id = str(uuid.uuid4())
@@ -47,6 +52,7 @@ class SubjectService:
             "subject_id": subject_id,
             "name": name,
             "description": description or "",
+            "dataset_description": dataset_description or "",
             "created_at": now,
             "updated_at": now,
         }
@@ -54,36 +60,44 @@ class SubjectService:
         self._save_metadata(metadata)
         return subject_id
 
+    def _normalize_subject_row(self, row: Dict) -> Dict:
+        out = dict(row)
+        out.setdefault("dataset_description", "")
+        return out
+
     def get_subject(self, subject_id: str) -> Optional[Dict]:
         metadata = self._load_metadata()
-        return metadata["subjects"].get(subject_id)
+        row = metadata["subjects"].get(subject_id)
+        if row is None:
+            return None
+        return self._normalize_subject_row(row)
 
     def list_subjects(self) -> List[Dict]:
         metadata = self._load_metadata()
         subjects = list(metadata["subjects"].values())
         subjects.sort(key=lambda x: x.get("created_at", ""))
-        return subjects
+        return [self._normalize_subject_row(x) for x in subjects]
 
-    def update_subject(self, subject_id: str, name: Optional[str] = None, description: Optional[str] = None) -> bool:
-        """更新知识库信息
-        
-        Args:
-            subject_id: 知识库ID
-            name: 新名称（可选）
-            description: 新描述（可选）
-            
-        Returns:
-            是否更新成功
-        """
+    def update_subject(self, subject_id: str, **fields: Any) -> bool:
+        """更新知识库信息（仅更新请求体中出现的字段）"""
         metadata = self._load_metadata()
         if subject_id not in metadata.get("subjects", {}):
             return False
         
         subject = metadata["subjects"][subject_id]
-        if name is not None:
-            subject["name"] = name
-        if description is not None:
-            subject["description"] = description
+        subject.setdefault("dataset_description", "")
+        changed = False
+        if "name" in fields:
+            subject["name"] = fields["name"]
+            changed = True
+        if "description" in fields:
+            subject["description"] = fields["description"]
+            changed = True
+        if "dataset_description" in fields:
+            subject["dataset_description"] = fields["dataset_description"]
+            changed = True
+        if not changed:
+            return True
         subject["updated_at"] = datetime.utcnow().isoformat() + "Z"
         
         self._save_metadata(metadata)

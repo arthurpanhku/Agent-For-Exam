@@ -48,11 +48,12 @@ export const useSubjectStore = defineStore('subject', () => {
     currentSubjectId.value = subjectId
   }
 
-  async function updateSubject(subjectId, name = null, description = null) {
+  async function updateSubject(subjectId, updates) {
+    const patch = typeof updates === 'string' ? { name: updates } : { ...(updates || {}) }
     loading.value = true
     error.value = null
     try {
-      const updated = await subjectService.updateSubject(subjectId, name, description)
+      const updated = await subjectService.updateSubject(subjectId, patch)
       const index = subjects.value.findIndex(s => s.subject_id === subjectId)
       if (index !== -1) {
         subjects.value[index] = updated

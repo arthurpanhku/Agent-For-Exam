@@ -14,12 +14,14 @@ router = APIRouter(prefix="/api/subjects", tags=["subjects"])
 class SubjectCreateRequest(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    dataset_description: Optional[str] = None
 
 
 class SubjectResponse(BaseModel):
     subject_id: str
     name: str
     description: str
+    dataset_description: str
     created_at: str
     updated_at: str
 
@@ -27,7 +29,11 @@ class SubjectResponse(BaseModel):
 @router.post("", response_model=SubjectResponse, status_code=status.HTTP_201_CREATED)
 async def create_subject(request: SubjectCreateRequest) -> SubjectResponse:
     service = SubjectService()
-    subject_id = service.create_subject(request.name, request.description)
+    subject_id = service.create_subject(
+        request.name,
+        request.description,
+        request.dataset_description,
+    )
     subject = service.get_subject(subject_id)
     if not subject:
         raise HTTPException(
@@ -120,6 +126,7 @@ async def create_subject_conversation(
 class SubjectUpdateRequest(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    dataset_description: Optional[str] = None
 
 
 @router.patch("/{subject_id}", response_model=SubjectResponse)
@@ -132,12 +139,9 @@ async def update_subject(subject_id: str, request: SubjectUpdateRequest) -> Subj
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"知识库 {subject_id} 不存在",
         )
-    
-    success = service.update_subject(
-        subject_id,
-        name=request.name,
-        description=request.description
-    )
+
+    updates = request.model_dump(exclude_unset=True)
+    success = service.update_subject(subject_id, **updates)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

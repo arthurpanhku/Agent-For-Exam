@@ -11,8 +11,12 @@ from app.services.config_service import config_service
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
-# 支持的模型列表（仅硅基流动）
+# 内置模型列表（按 binding 合并远程同步与自定义模型）
 MODEL_LISTS = {
+    "openai": [
+        "deepseek-v4-flash",
+        "deepseek-v4-pro",
+    ],
     "siliconflow": [
         "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
         "deepseek-ai/DeepSeek-V3",

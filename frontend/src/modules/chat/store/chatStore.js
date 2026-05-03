@@ -78,17 +78,17 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
   
-  async function queryStream(conversationId, query, mode, agentIntent, onChunk) {
+  async function queryStream(conversationId, query, mode, agentIntent, onChunk, streamOptions = null) {
     if (!conversationId) throw new Error('请先选择对话')
     
-    await chatService.queryStream(conversationId, query, mode, agentIntent, onChunk)
+    await chatService.queryStream(conversationId, query, mode, agentIntent, onChunk, streamOptions)
   }
   
-  async function saveMessage(conversationId, query, answer, toolCalls = null, streamItems = null) {
+  async function saveMessage(conversationId, query, answer, toolCalls = null, streamItems = null, citationAnalysis = null) {
     if (!conversationId) return
     
     try {
-      await chatService.saveMessage(conversationId, query, answer, toolCalls, streamItems)
+      await chatService.saveMessage(conversationId, query, answer, toolCalls, streamItems, citationAnalysis)
     } catch (error) {
       console.error('保存消息失败:', error)
     }
