@@ -19,14 +19,14 @@ def reset_openapi_schema():
 def no_api_key(monkeypatch):
     import app.config as cfg
 
-    monkeypatch.setattr(cfg.settings, "afe_api_key", "")
+    monkeypatch.setattr(cfg.settings, "service_api_key", "")
 
 
 @pytest.fixture
 def with_api_key(monkeypatch):
     import app.config as cfg
 
-    monkeypatch.setattr(cfg.settings, "afe_api_key", "contract-test-secret")
+    monkeypatch.setattr(cfg.settings, "service_api_key", "contract-test-secret")
 
 
 def test_health_ok_and_skips_api_key(with_api_key):

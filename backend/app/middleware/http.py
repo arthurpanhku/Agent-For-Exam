@@ -30,10 +30,10 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
-    """When AFE_API_KEY is set, require matching X-API-Key on all routes except health & OPTIONS."""
+    """When STUDYFORGE_API_KEY (or legacy AFE_API_KEY) is set, require X-API-Key except health & OPTIONS."""
 
     async def dispatch(self, request: Request, call_next):
-        if not settings.afe_api_key:
+        if not settings.service_api_key:
             return await call_next(request)
 
         if request.method == "OPTIONS":
@@ -45,7 +45,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 
         key = request.headers.get("X-API-Key") or request.headers.get("x-api-key")
         rid = getattr(request.state, "request_id", None)
-        if key != settings.afe_api_key:
+        if key != settings.service_api_key:
             return JSONResponse(
                 status_code=401,
                 content={

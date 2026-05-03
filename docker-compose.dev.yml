@@ -5,9 +5,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: agent-for-exam-backend-dev
+    container_name: studyforge-backend-dev
     environment:
-      AFE_API_KEY: ${AFE_API_KEY:-}
+      STUDYFORGE_API_KEY: ${STUDYFORGE_API_KEY:-${AFE_API_KEY:-}}
     ports:
       - "8000:8000"
     volumes:
@@ -26,12 +26,12 @@ services:
 
   frontend-dev:
     image: node:20-alpine
-    container_name: agent-for-exam-frontend-dev
+    container_name: studyforge-frontend-dev
     working_dir: /app/frontend
     environment:
       # 告诉 Vite 在 Docker 开发模式下将 /api 代理到 backend-dev 容器
       - VITE_DEV_API_PROXY_TARGET=http://backend-dev:8000
-      - VITE_AFE_API_KEY=${AFE_API_KEY:-}
+      - VITE_STUDYFORGE_API_KEY=${STUDYFORGE_API_KEY:-${AFE_API_KEY:-}}
     ports:
       - "5173:5173"
     volumes:
@@ -41,4 +41,3 @@ services:
       sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     depends_on:
       - backend-dev
-

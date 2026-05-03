@@ -46,7 +46,7 @@
                 {{ msg.role === 'user' ? 'U' : 'A' }}
               </div>
               <div class="message-content">
-                <div class="sender-name">{{ msg.role === 'user' ? 'You' : 'Agent' }}</div>
+                <div class="sender-name">{{ msg.role === 'user' ? 'You' : 'Assistant' }}</div>
                 
                 <!-- 用户消息 -->
                 <template v-if="msg.role === 'user'">
@@ -242,7 +242,7 @@
           </div>
         </div>
         <div class="input-footer">
-          Agent can make mistakes. Please verify important information.
+          Assistant output may contain errors. Verify critical facts against your materials.
         </div>
       </div>
     </div>

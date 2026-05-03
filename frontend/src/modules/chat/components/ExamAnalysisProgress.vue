@@ -156,7 +156,7 @@
             开始分析
           </el-button>
         </div>
-        <p class="progress-desc">多智能体分析任务将在此展示各 Agent 的思考与工具调用</p>
+        <p class="progress-desc">分析流水线将在此展示各角色的推理步骤与工具调用</p>
       </div>
       <div class="agent-trace-list">
         <AgentTracePanel

@@ -1,4 +1,5 @@
 from pathlib import Path
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 from typing import List
 import logging
@@ -15,8 +16,11 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = True
     cors_origins: List[str] = ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"]
-    # 非空时要求所有 HTTP 请求（除 OPTIONS、/health）携带 X-API-Key；生产环境强烈建议配置
-    afe_api_key: str = ""
+    # 非空时要求所有 HTTP 请求（除 OPTIONS、/health）携带 X-API-Key；兼容旧名 AFE_API_KEY
+    service_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("STUDYFORGE_API_KEY", "AFE_API_KEY"),
+    )
     
     # LightRAG 配置（后续使用）
     lightrag_working_dir: str = "./data/.lightrag"

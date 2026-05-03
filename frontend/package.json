@@ -1,6 +1,7 @@
 {
-  "name": "lightrag-web-frontend",
+  "name": "studyforge-web",
   "version": "1.0.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

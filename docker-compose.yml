@@ -5,9 +5,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: agent-for-exam-backend
+    container_name: studyforge-backend
     environment:
-      AFE_API_KEY: ${AFE_API_KEY:-}
+      STUDYFORGE_API_KEY: ${STUDYFORGE_API_KEY:-${AFE_API_KEY:-}}
     ports:
       - "8000:8000"
     volumes:
@@ -20,11 +20,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: agent-for-exam-frontend
+    container_name: studyforge-frontend
     environment:
-      AFE_API_KEY: ${AFE_API_KEY:-}
+      STUDYFORGE_API_KEY: ${STUDYFORGE_API_KEY:-${AFE_API_KEY:-}}
     ports:
       - "80:80"
     depends_on:
       - backend
-

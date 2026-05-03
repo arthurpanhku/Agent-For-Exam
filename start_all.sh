@@ -11,14 +11,14 @@ BACKEND_HOST="127.0.0.1"
 BACKEND_PORT="8000"
 FRONTEND_HOST="127.0.0.1"
 FRONTEND_PORT="5173"
-AFE_RELOAD="${AFE_RELOAD:-0}"
+BACKEND_HOT_RELOAD="${STUDYFORGE_RELOAD:-${AFE_RELOAD:-0}}"
 OPENED_TERMINAL_WINDOWS=0
 
 mkdir -p "$LOG_DIR" "$PID_DIR"
 
 print_header() {
   printf '\n========================================\n'
-  printf 'Starting Agent for Exam\n'
+  printf 'Starting StudyForge\n'
   printf '========================================\n\n'
 }
 
@@ -126,7 +126,7 @@ start_backend() {
   (
     cd "$BACKEND_DIR"
     backend_args=(app.main:app --host "$BACKEND_HOST" --port "$BACKEND_PORT")
-    if [ "$AFE_RELOAD" = "1" ]; then
+    if [ "$BACKEND_HOT_RELOAD" = "1" ]; then
       backend_args=(app.main:app --reload --host "$BACKEND_HOST" --port "$BACKEND_PORT")
     fi
 
@@ -162,7 +162,7 @@ start_backend_terminal() {
 
   printf 'Opening backend terminal window...\n'
   backend_args=(python -m uvicorn app.main:app --host "$BACKEND_HOST" --port "$BACKEND_PORT")
-  if [ "$AFE_RELOAD" = "1" ]; then
+  if [ "$BACKEND_HOT_RELOAD" = "1" ]; then
     backend_args=(python -m uvicorn app.main:app --reload --host "$BACKEND_HOST" --port "$BACKEND_PORT")
   fi
 

@@ -162,7 +162,7 @@
         </el-select>
         <el-switch
           v-model="agentModeEnabled"
-          active-text="Agent"
+          active-text="助手"
           inactive-text="普通"
           size="small"
           style="margin-left: 8px;"
@@ -177,7 +177,7 @@
         </el-tooltip>
         <el-tooltip 
           v-if="agentModeEnabled" 
-          content="Agent模式：智能助手可以调用工具完成任务（如生成思维导图）"
+          content="助手模式：模型可按需调用注册的工具（例如生成思维导图）"
           placement="top"
         >
           <el-icon class="info-icon"><InfoFilled /></el-icon>
@@ -245,7 +245,7 @@ const thinkCollapseStates = ref([]) // 存储展开的消息索引数组（el-co
 const streamingThinkCollapse = ref([]) // 流式输出时的think折叠状态（默认折叠，空数组）
 const graphReady = ref(false) // 知识图谱是否完全生成
 const graphStatusLoading = ref(false) // 检查知识图谱状态的加载状态
-const agentModeEnabled = ref(false) // Agent 模式开关
+const agentModeEnabled = ref(false) // 助手（工具）模式开关
 
 // 检查消息是否有有效内容
 const hasValidContent = (message) => {
@@ -685,10 +685,10 @@ const handleSend = async () => {
   }
 }
 
-// Agent 模式切换
+// 助手（工具）模式切换
 const handleAgentModeChange = (enabled) => {
   if (enabled) {
-    ElMessage.info('已启用 Agent 模式，可以智能调用工具完成任务')
+    ElMessage.info('已启用助手模式：可按需调用工具完成任务')
   } else {
     ElMessage.info('已切换到普通模式')
   }

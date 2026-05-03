@@ -50,7 +50,7 @@ stop_port() {
 }
 
 printf '\n========================================\n'
-printf 'Stopping Agent for Exam\n'
+printf 'Stopping StudyForge\n'
 printf '========================================\n\n'
 
 stop_pid_file "backend"

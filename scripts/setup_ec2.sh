@@ -5,7 +5,7 @@
 
 set -e
 
-echo "=== Agent for Exam EC2 初始设置 ==="
+echo "=== StudyForge EC2 bootstrap ==="
 
 # 检测操作系统类型
 if [ -f /etc/os-release ]; then

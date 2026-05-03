@@ -1,4 +1,9 @@
 {
+  "name": "studyforge",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "StudyForge — AI-assisted study workspace with structured retrieval",
   "dependencies": {
     "pagedjs": "^0.4.3"
   }

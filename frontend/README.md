@@ -1,22 +1,22 @@
-# 前端应用
+# StudyForge 前端
 
-基于 Vue 3 + Vite 的现代化前端应用，提供知识图谱构建、智能问答、思维导图生成等功能的 Web 界面。
+Vue 3 + Vite 客户端：材料浏览、图谱可视化、对话与可选的工具编排界面。
 
 ## 技术栈
 
-- **Vue 3** - 渐进式前端框架（Composition API）
-- **Vite** - 快速的前端构建工具
-- **Pinia** - 现代化状态管理
-- **Vue Router** - 单页应用路由管理
-- **Element Plus** - 企业级 UI 组件库
-- **Cytoscape.js** - 知识图谱可视化引擎
-- **Markmap** - 思维导图可视化引擎
-- **Axios** - HTTP 客户端库
+- **Vue 3** - Composition API
+- **Vite** - 开发与构建
+- **Pinia** - 状态管理
+- **Vue Router** - 路由
+- **Element Plus** - UI 组件
+- **Cytoscape.js** - 图谱渲染
+- **Markmap** - 思维导图
+- **Axios** - HTTP
 
 ## 核心功能
 
-### 1. 智能对话（Chat）
-- 基于 Agent 模式的智能问答
+### 1. 对话（Chat）
+- 可选「助手 / 工具」模式（后端 function calling）
 - 支持多轮对话，保持上下文
 - 实时流式响应显示
 - 工具调用可视化（思维导图生成、知识图谱查询等）
@@ -25,7 +25,7 @@
 - 支持 Cheatsheet 真实分页预览、编辑保存、复制 Markdown 和 PDF 导出
 
 ### 2. 知识图谱（Graph）
-- 基于 LightRAG 构建的知识图谱可视化
+- 基于 LightRAG 抽取结果的交互式展示
 - 实体和关系交互式展示
 - 支持节点过滤和搜索
 - 实体来源文档追踪

@@ -1,17 +1,15 @@
-# 后端服务
+# StudyForge 后端
 
-基于 FastAPI 和 LightRAG 的 Web 应用后端。
+FastAPI 服务层：文档管线、图谱检索、可选的工具编排（function calling），以及与 StudyForge 前端对接的 REST/SSE 接口。
 
-## Agent 模式概览
+## 工具编排（原 Agent 管道）
 
-后端内置了一个基于 LLM Function Calling 的 **Agent 服务**（`AgentService`），用于在单一接口中统一编排多种工具调用。通过 Agent 模式，后端可以：
+后端提供基于 LLM Function Calling 的 **`AgentService`**（内部模块名保留），在单一接口里编排工具调用。启用后模型可以：
 
-- 根据用户问题自动选择是否调用工具或直接回答；
-- 调用 **文档列表工具**（列出当前对话下的所有文档）；
-- 调用 **知识图谱查询工具**（基于 LightRAG 的图谱检索）；
-- 调用 **思维导图生成工具**（生成并保存对应对话的脑图内容）。
+- 自行判断是否调用工具或直接作答；
+- 调用 **文档枚举**、**图谱检索**（LightRAG 管线）、**思维导图生成** 等注册工具。
 
-这些工具通过统一的注册表 `ToolRegistry` 管理，并以 OpenAI 兼容的 tools 格式暴露给上游 LLM。
+工具由 **`ToolRegistry`** 维护，并以 OpenAI 兼容的 `tools` 约定暴露给上游模型。
 
 ## 环境要求
 
@@ -90,7 +88,7 @@ pip install -r requirements.txt -r requirements-dev.txt
 pytest
 ```
 
-契约测试覆盖：`GET /health`（免 API Key）、可选 **`AFE_API_KEY`** 时的鉴权、`openapi.json` 中的 **`ApiKeyAuth`** 方案，以及未处理异常的响应脱敏。
+契约测试覆盖：`GET /health`（免网关密钥）、可选 **`STUDYFORGE_API_KEY`**（或兼容 **`AFE_API_KEY`**）时的鉴权、`openapi.json` 中的 **`ApiKeyAuth`**，以及未处理异常的响应脱敏。
 
 ### 手动冒烟
 

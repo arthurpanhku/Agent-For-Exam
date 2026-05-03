@@ -13,8 +13,8 @@ from app.openapi import build_custom_openapi
 from app.exception_handlers import http_exception_handler, unhandled_exception_handler
 
 app = FastAPI(
-    title="Agent for Exam",
-    description="基于 LightRAG 的 Web 应用程序",
+    title="StudyForge API",
+    description="StudyForge — structured retrieval and study workspace API.",
     version="1.0.0"
 )
 
@@ -80,7 +80,7 @@ async def startup_event():
 async def root():
     """根路径"""
     return {
-        "message": "Agent for Exam API",
+        "message": "StudyForge API",
         "version": "1.0.0",
         "status": "running"
     }
