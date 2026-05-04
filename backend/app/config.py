@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 from typing import List
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # 服务器配置
     host: str = "0.0.0.0"
     port: int = 8000
-    debug: bool = True
+    debug: bool = False
     cors_origins: List[str] = ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"]
     # 非空时要求所有 HTTP 请求（除 OPTIONS、/health）携带 X-API-Key；兼容旧名 AFE_API_KEY
     service_api_key: str = Field(
@@ -103,7 +103,7 @@ class Settings(BaseSettings):
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         data = {
-            "timestamp": datetime.utcnow().isoformat(timespec="milliseconds") + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),

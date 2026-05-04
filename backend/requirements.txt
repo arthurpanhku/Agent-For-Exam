@@ -1,23 +1,23 @@
 # Web 框架
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-python-multipart==0.0.6
+fastapi>=0.115.0,<0.116
+uvicorn[standard]>=0.34.0,<0.35
+python-multipart>=0.0.12
 
 # 配置管理
-pydantic-settings==2.1.0
-python-dotenv==1.0.0
-cryptography>=41.0.0
+pydantic-settings>=2.6.0,<3
+python-dotenv>=1.0.0
+cryptography>=43.0.0
 
 # HTTP 客户端
-requests>=2.31.0
+requests>=2.32.0
 requests-toolbelt>=1.0.0
 
 # 异步文件操作
-aiofiles==23.2.1
+aiofiles>=24.1.0
 
 # PDF 导出（服务端）
-playwright==1.55.0
-Markdown==3.6
+playwright>=1.50.0
+Markdown>=3.7
 
 # LightRAG 核心依赖
 nanoid>=2.0.0
@@ -29,21 +29,21 @@ tiktoken
 json-repair
 tenacity
 pypinyin
-httpx>=0.24,<0.28
+httpx>=0.27,<0.29
 aiohttp
-openai
+openai>=1.0.0
 ollama
 pipmaster
 scikit-learn
 
 # 文档解析依赖
-python-pptx==0.6.23
-pdfplumber==0.10.3
-pypdfium2>=5.0.0  # pdfplumber的to_image()功能需要此依赖
-PyPDF2==3.0.1
-Pillow>=9.0.0
-python-docx==1.1.0  # DOCX文档解析
-PyMuPDF>=1.23.0  # PDF图片提取（fitz模块）
+python-pptx>=1.0.0
+pdfplumber>=0.11.0
+pypdfium2>=5.0.0
+pypdf>=5.0.0          # PyPDF2 已弃用，迁移到 pypdf
+Pillow>=11.0.0
+python-docx>=1.1.0
+PyMuPDF>=1.24.0
 
 # 图片渲染依赖（Windows环境需要）
 comtypes>=1.1.14; sys_platform == 'win32'

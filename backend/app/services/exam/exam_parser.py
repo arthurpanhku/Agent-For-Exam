@@ -433,7 +433,7 @@ class ExamParser:
                 match = re.search(r'\[.*\]', content, re.DOTALL)
                 if match:
                     return json.loads(match.group())
-            except:
+            except Exception:
                 pass
             return []
     

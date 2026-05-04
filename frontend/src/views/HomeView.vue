@@ -26,8 +26,14 @@
 
     <!-- 学科列表区域 -->
     <section class="subjects-section">
-      <div v-if="subjectStore.loading && subjectStore.subjects.length === 0" class="loading-state">
-        <el-skeleton :rows="3" animated count="3" class="skeleton-card" />
+      <div v-if="subjectStore.loading && subjectStore.subjects.length === 0" class="subjects-grid">
+        <div v-for="n in 4" :key="n" class="subject-card skeleton-card">
+          <div class="skeleton card-icon-skeleton" style="width:56px;height:56px;border-radius:14px;flex-shrink:0"></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+            <div class="skeleton" style="height:18px;width:60%"></div>
+            <div class="skeleton" style="height:14px;width:40%"></div>
+          </div>
+        </div>
       </div>
 
       <div v-else-if="subjectStore.subjects.length === 0" class="empty-state">
@@ -228,14 +234,20 @@ const handleSubjectCommand = async (action, subject) => {
   align-items: center;
   gap: 20px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   position: relative;
+  box-shadow: var(--shadow-card);
 }
 
 .subject-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-3px);
   box-shadow: var(--shadow-float);
   border-color: var(--color-accent);
+}
+
+.skeleton-card {
+  cursor: default;
+  pointer-events: none;
 }
 
 .card-icon {

@@ -34,7 +34,7 @@ class ConversationService:
                     if "conversations" not in metadata:
                         metadata["conversations"] = {}
                     return metadata
-            except:
+            except Exception:
                 return {"conversations": {}, "next_conversation_number": 1}
         return {"conversations": {}, "next_conversation_number": 1}
     
@@ -314,7 +314,7 @@ class ConversationService:
             try:
                 with open(messages_file, 'r', encoding='utf-8') as f:
                     messages = json.load(f)
-            except:
+            except Exception:
                 messages = []
         
         # 计算时间戳：如果有 base_timestamp，使用它；否则使用当前时间减去一个小的偏移量
@@ -331,7 +331,7 @@ class ConversationService:
                 offset_ms = doc_count
                 timestamp_dt = base_dt - timedelta(milliseconds=offset_ms)
                 timestamp = timestamp_dt.isoformat().replace('+00:00', 'Z')
-            except:
+            except Exception:
                 # 如果解析失败，使用当前时间
                 timestamp = datetime.utcnow().isoformat() + "Z"
         else:
@@ -411,7 +411,7 @@ class ConversationService:
             try:
                 with open(messages_file, 'r', encoding='utf-8') as f:
                     messages = json.load(f)
-            except:
+            except Exception:
                 messages = []
         
         # 添加用户消息
@@ -523,7 +523,7 @@ class ConversationService:
                 
                 messages.sort(key=get_timestamp)
                 return messages
-        except:
+        except Exception:
             return []
 
     def reset_history(self, conversation_id: str, message_index: int) -> bool:
@@ -546,7 +546,7 @@ class ConversationService:
             try:
                 with open(messages_file, 'r', encoding='utf-8') as f:
                     messages = json.load(f)
-            except:
+            except Exception:
                 return False
         
         if not isinstance(messages, list):

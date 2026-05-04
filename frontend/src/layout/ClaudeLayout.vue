@@ -17,9 +17,9 @@
         </button>
       </div>
 
-      <nav class="sidebar-nav" v-show="!isCollapsed">
+      <nav class="sidebar-nav">
         <!-- 顶部 Home -->
-        <div class="nav-group">
+        <div class="nav-group" v-show="!isCollapsed">
           <router-link to="/" class="nav-item" active-class="active">
             <el-icon><Collection /></el-icon>
             Home
@@ -28,6 +28,19 @@
             <el-icon><Notebook /></el-icon>
             Dataset &amp; Evaluation
           </router-link>
+        </div>
+        <!-- 折叠时仅图标 + tooltip -->
+        <div class="nav-group-collapsed" v-show="isCollapsed">
+          <el-tooltip content="Home" placement="right" :show-after="200">
+            <router-link to="/" class="nav-item-icon" active-class="active">
+              <el-icon><Collection /></el-icon>
+            </router-link>
+          </el-tooltip>
+          <el-tooltip content="Dataset &amp; Evaluation" placement="right" :show-after="200">
+            <router-link to="/dataset-evaluation" class="nav-item-icon" active-class="active">
+              <el-icon><Notebook /></el-icon>
+            </router-link>
+          </el-tooltip>
         </div>
 
         <!-- 知识库 + 对话列表 -->
@@ -114,7 +127,7 @@
     <main class="main-content">
       <div class="content-wrapper">
         <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
+          <transition name="page" mode="out-in">
             <component :is="Component" />
           </transition>
         </router-view>
@@ -578,14 +591,49 @@ watch(
   min-height: 100%;
 }
 
-/* Transition */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
+/* Collapsed icon-only nav */
+.nav-group-collapsed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
 }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+.nav-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.nav-item-icon:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+  color: var(--text-primary);
+}
+
+.nav-item-icon.active {
+  background-color: rgba(218, 119, 86, 0.1);
+  color: var(--color-accent);
+}
+
+.nav-item-icon .el-icon {
+  font-size: 18px;
+}
+
+/* Sidebar width transition */
+.sidebar {
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Content wrapper scrollbar */
+.main-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
 }
 </style>

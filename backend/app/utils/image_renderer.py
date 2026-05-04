@@ -179,23 +179,23 @@ class ImageRenderer:
                     try:
                         from comtypes.client import GetActiveObject
                         _pptx_app_instance = GetActiveObject("PowerPoint.Application")
-                    except:
+                    except Exception:
                         # 如果没有已存在的实例，创建新实例
                         _pptx_app_instance = comtypes.client.CreateObject("PowerPoint.Application")
                     
                     # 设置应用属性，尽可能隐藏窗口
                     try:
                         _pptx_app_instance.Visible = False
-                    except:
+                    except Exception:
                         try:
                             _pptx_app_instance.WindowState = 2  # ppWindowMinimized
-                        except:
+                        except Exception:
                             pass
                     
                     # 禁用警告和提示
                     try:
                         _pptx_app_instance.DisplayAlerts = 0  # ppAlertsNone
-                    except:
+                    except Exception:
                         pass
                     
                     _pptx_app_ref_count = 0
@@ -249,10 +249,10 @@ class ImageRenderer:
         # 在打开演示文稿前，再次确保窗口隐藏
         try:
             ppt_app.Visible = False
-        except:
+        except Exception:
             try:
                 ppt_app.WindowState = 2  # ppWindowMinimized
-            except:
+            except Exception:
                 pass
         
         # 使用 WithWindow 参数隐藏演示文稿窗口（msoFalse = 0）
@@ -276,16 +276,16 @@ class ImageRenderer:
                     False,  # Untitled
                     0       # WithWindow = msoFalse
                 )
-            except:
+            except Exception:
                 # 如果还是失败，回退到默认方式
                 presentation = ppt_app.Presentations.Open(str(Path(file_path).absolute()))
                 # 尝试隐藏窗口
                 try:
                     ppt_app.Visible = False
-                except:
+                except Exception:
                     try:
                         ppt_app.WindowState = 2  # ppWindowMinimized
-                    except:
+                    except Exception:
                         pass
         
         try:
@@ -358,7 +358,7 @@ class ImageRenderer:
             
             try:
                 del presentation
-            except:
+            except Exception:
                 pass
     
     def _render_pptx_with_libreoffice(

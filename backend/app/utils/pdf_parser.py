@@ -189,7 +189,7 @@ class PDFParser:
                                 "page": page_num
                             })
                             break
-        except:
+        except Exception:
             pass
         
         return outline

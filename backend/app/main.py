@@ -40,11 +40,11 @@ logging.getLogger("app").setLevel(logging.INFO)
 # CORS 配置（最先注册的在 Starlette 栈中最靠近路由）
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,  # 使用明确配置的端口列表
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*", "X-Request-ID"],  # 便于前端读取关联 ID
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-Request-ID"],
+    expose_headers=["X-Request-ID"],
 )
 
 # 可选 API Key（内侧）；最外层为请求 ID，便于拒绝请求也带上关联 ID
