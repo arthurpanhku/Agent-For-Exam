@@ -25,6 +25,9 @@
       <el-button type="primary" @click="handleSave" :loading="saving">
         保存配置
       </el-button>
+      <el-button @click="handleTest" :loading="testing">
+        测试联通
+      </el-button>
     </el-form-item>
   </el-form>
 </template>
@@ -47,7 +50,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update'])
+const emit = defineEmits(['update', 'test'])
 
 const SILICONFLOW_HOST = 'https://api.siliconflow.cn/v1'
 const OPENAI_DEFAULT_HOST = 'https://api.deepseek.com'
@@ -65,6 +68,7 @@ const localConfig = ref({
 })
 
 const saving = ref(false)
+const testing = ref(false)
 
 const availableModels = computed(() => {
   return props.modelLists[props.defaultBinding] || []
@@ -87,18 +91,28 @@ function handleModelChange() {
 function handleSave() {
   saving.value = true
 
+  emit('update', buildPayload())
+  saving.value = false
+}
+
+function handleTest() {
+  testing.value = true
+  emit('test', buildPayload())
+  testing.value = false
+}
+
+function buildPayload() {
   const binding = props.defaultBinding
   const host =
     binding === 'siliconflow'
       ? SILICONFLOW_HOST
       : (localConfig.value.host || '').trim() || OPENAI_DEFAULT_HOST
 
-  emit('update', {
+  return {
     binding,
     model: localConfig.value.model,
     host
-  })
-  saving.value = false
+  }
 }
 </script>
 

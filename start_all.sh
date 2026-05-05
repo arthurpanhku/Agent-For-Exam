@@ -13,6 +13,7 @@ FRONTEND_HOST="127.0.0.1"
 FRONTEND_PORT="5173"
 BACKEND_HOT_RELOAD="${STUDYFORGE_RELOAD:-${AFE_RELOAD:-0}}"
 OPENED_TERMINAL_WINDOWS=0
+PYTHON_CMD=""
 
 mkdir -p "$LOG_DIR" "$PID_DIR"
 
@@ -24,6 +25,32 @@ print_header() {
 
 command_exists() {
   command -v "$1" >/dev/null 2>&1
+}
+
+python_is_supported() {
+  "$1" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1
+}
+
+resolve_python() {
+  local candidate
+  for candidate in "${PYTHON:-}" python3 python; do
+    if [ -n "$candidate" ] && command_exists "$candidate" && python_is_supported "$candidate"; then
+      PYTHON_CMD="$candidate"
+      return
+    fi
+  done
+
+  printf 'Python 3.10 or newer is required. Checked PYTHON, python3, and python.\n' >&2
+  if command_exists python3; then
+    printf 'python3 version: ' >&2
+    python3 --version >&2
+  fi
+  if command_exists python; then
+    printf 'python version: ' >&2
+    python --version >&2
+  fi
+  printf 'Install a newer Python from https://www.python.org/downloads/macos/ or with Homebrew: brew install python\n' >&2
+  exit 1
 }
 
 is_port_in_use() {
@@ -74,21 +101,11 @@ run_in_terminal() {
 }
 
 ensure_backend_env() {
-  if ! command_exists python3; then
-    printf 'python3 was not found. Please install Python 3.10 or newer, then rerun this script.\n' >&2
-    exit 1
-  fi
-
-  if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
-    printf 'Python 3.10 or newer is required. Current version: ' >&2
-    python3 --version >&2
-    printf 'Install a newer Python from https://www.python.org/downloads/macos/ or with Homebrew: brew install python\n' >&2
-    exit 1
-  fi
+  resolve_python
 
   if [ ! -x "$BACKEND_DIR/venv/bin/python" ]; then
     printf 'Creating backend virtual environment...\n'
-    python3 -m venv "$BACKEND_DIR/venv"
+    "$PYTHON_CMD" -m venv "$BACKEND_DIR/venv"
   fi
 
   if ! "$BACKEND_DIR/venv/bin/python" -c "import fastapi, uvicorn, markdown, playwright" >/dev/null 2>&1; then

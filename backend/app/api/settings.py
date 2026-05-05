@@ -4,6 +4,8 @@
 提供 LLM 配置的获取和更新接口
 """
 from fastapi import APIRouter, HTTPException, status
+import time
+import httpx
 from pydantic import BaseModel
 from typing import Optional, Dict
 from app.services.config_service import config_service
@@ -14,6 +16,7 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 # 内置模型列表（按 binding 合并远程同步与自定义模型）
 MODEL_LISTS = {
     "openai": [
+        "deepseek-v4-pro[1m]",
         "deepseek-v4-flash",
         "deepseek-v4-pro",
     ],
@@ -52,6 +55,15 @@ class LLMConfigUpdate(BaseModel):
 class ProviderAPIKeyUpdate(BaseModel):
     """统一服务商 API Key 更新请求"""
     api_key: str
+
+
+class LLMConnectivityTest(BaseModel):
+    """LLM 联通性测试请求"""
+    scene: Optional[str] = None
+    binding: Optional[str] = None
+    model: Optional[str] = None
+    host: Optional[str] = None
+    api_key: Optional[str] = None
 
 
 def _get_merged_model_lists() -> Dict[str, list]:
@@ -147,6 +159,93 @@ async def update_llm_config(scene: str, config_data: LLMConfigUpdate):
     }
 
 
+@router.post("/llm-test")
+async def test_llm_connectivity(payload: LLMConnectivityTest):
+    """测试 LLM 是否可联通。"""
+    scene_config = {}
+    if payload.scene:
+        if payload.scene not in ["knowledge_graph", "chat", "mindmap", "embedding", "ocr"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"无效的场景名称: {payload.scene}"
+            )
+        scene_config = config_service.get_config(payload.scene)
+
+    binding = payload.binding or scene_config.get("binding") or "openai"
+    model = payload.model or scene_config.get("model") or "deepseek-v4-pro[1m]"
+    host = (payload.host or scene_config.get("host") or "https://api.deepseek.com").rstrip("/")
+    api_key = payload.api_key or scene_config.get("api_key") or config_service.get_provider_api_key(binding)
+
+    if binding == "siliconflow":
+        host = SILICONFLOW_HOST
+
+    if binding not in ["openai", "siliconflow"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"暂不支持测试 {binding}，请使用 openai/DeepSeek 或 siliconflow"
+        )
+    model = config_service.normalize_model(binding, host, model)
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="API Key 未配置"
+        )
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="模型名称未配置"
+        )
+
+    started = time.perf_counter()
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                f"{host}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": "Reply with exactly OK."},
+                        {"role": "user", "content": "Connectivity test"},
+                    ],
+                    "temperature": 0,
+                    "max_tokens": 8,
+                    "stream": False,
+                },
+            )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="LLM 联通测试超时")
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"LLM 联通测试失败: {exc}")
+
+    latency_ms = int((time.perf_counter() - started) * 1000)
+    if response.status_code >= 400:
+        error_text = response.text[:500]
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"LLM API 返回错误 {response.status_code}: {error_text}"
+        )
+
+    try:
+        data = response.json()
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    except Exception:
+        content = ""
+
+    return {
+        "status": "success",
+        "message": "LLM 联通测试成功",
+        "binding": binding,
+        "model": model,
+        "host": host,
+        "latency_ms": latency_ms,
+        "sample": content[:80],
+    }
+
+
 @router.get("/model-lists")
 async def get_model_lists():
     """获取支持的模型列表（包含自定义模型）"""
@@ -159,10 +258,10 @@ async def get_model_lists():
 @router.post("/providers/{binding}/api-key")
 async def update_provider_api_key(binding: str, payload: ProviderAPIKeyUpdate):
     """更新统一服务商 API Key。"""
-    if binding != "siliconflow":
+    if binding not in ["openai", "siliconflow"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="目前仅支持 siliconflow 的统一 API Key"
+            detail="目前仅支持 DeepSeek(openai) 或 siliconflow 的统一 API Key"
         )
     if not payload.api_key.strip():
         raise HTTPException(
@@ -174,10 +273,11 @@ async def update_provider_api_key(binding: str, payload: ProviderAPIKeyUpdate):
 
     refresh_result = None
     refresh_error = ""
-    try:
-        refresh_result = await config_service.refresh_provider_models(binding)
-    except Exception as exc:
-        refresh_error = str(exc)
+    if binding == "siliconflow":
+        try:
+            refresh_result = await config_service.refresh_provider_models(binding)
+        except Exception as exc:
+            refresh_error = str(exc)
 
     return {
         "status": "success",

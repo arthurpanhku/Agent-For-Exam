@@ -53,6 +53,17 @@ def _decrypt_api_key(encrypted_key: str) -> str:
     return cipher.decrypt(encrypted_key.encode()).decode()
 
 
+def _normalize_provider_model(binding: str, host: str, model: str) -> str:
+    """Normalize UI aliases to model IDs accepted by the provider API."""
+    model = (model or "").strip()
+    if binding == "openai" and "api.deepseek.com" in (host or ""):
+        if model.startswith("deepseek-v4-pro["):
+            return "deepseek-v4-pro"
+        if model.startswith("deepseek-v4-flash["):
+            return "deepseek-v4-flash"
+    return model
+
+
 class ConfigService:
     """配置管理服务"""
     
@@ -110,6 +121,7 @@ class ConfigService:
             
             self._config_cache = {
                 "provider_api_keys": {
+                    "openai": _encrypt_api_key(default_api_key) if default_api_key else "",
                     "siliconflow": _encrypt_api_key(default_api_key) if default_api_key else ""
                 },
                 "knowledge_graph": {
@@ -167,6 +179,15 @@ class ConfigService:
         if "provider_api_keys" not in config_data:
             config_data["provider_api_keys"] = {}
             changed = True
+        if "openai" not in config_data["provider_api_keys"]:
+            fallback_key = ""
+            for scene in ["chat", "knowledge_graph", "mindmap"]:
+                scene_config = config_data.get(scene, {})
+                if scene_config.get("binding", "openai") == "openai" and scene_config.get("api_key_encrypted"):
+                    fallback_key = scene_config["api_key_encrypted"]
+                    break
+            config_data["provider_api_keys"]["openai"] = fallback_key
+            changed = True
         if "remote_models" not in config_data:
             config_data["remote_models"] = {"siliconflow": []}
             changed = True
@@ -218,7 +239,11 @@ class ConfigService:
         
         result = {
             "binding": scene_config.get("binding", "siliconflow"),
-            "model": scene_config.get("model", ""),
+            "model": _normalize_provider_model(
+                scene_config.get("binding", "siliconflow"),
+                scene_config.get("host", "https://api.siliconflow.cn/v1"),
+                scene_config.get("model", ""),
+            ),
             "host": scene_config.get("host", "https://api.siliconflow.cn/v1"),
             "api_key": api_key
         }
@@ -276,6 +301,10 @@ class ConfigService:
         # 立即更新全局配置（立即生效）
         self._apply_to_global_config(scene)
 
+    def normalize_model(self, binding: str, host: str, model: str) -> str:
+        """Return the provider API model id for a configured/display model."""
+        return _normalize_provider_model(binding, host, model)
+
     def get_provider_api_key(self, binding: str = "siliconflow", force_reload: bool = True) -> str:
         """获取统一服务商 API Key（已解密）。"""
         config_data = self._load_config(force_reload=force_reload)
@@ -293,7 +322,9 @@ class ConfigService:
             if scene_key:
                 return _decrypt_api_key(scene_key)
 
-        if binding == "siliconflow":
+        if binding == "openai":
+            return config.settings.llm_binding_api_key or ""
+        if binding == "siliconflow" and config.settings.llm_binding == "siliconflow":
             return config.settings.llm_binding_api_key or ""
         return ""
 
@@ -306,17 +337,27 @@ class ConfigService:
         self._config_cache = config_data
         self._save_config()
 
-        if binding == "siliconflow":
+        if binding in ["openai", "siliconflow"]:
             config.settings.llm_binding_api_key = api_key.strip()
             for scene in ["knowledge_graph", "chat", "mindmap"]:
-                self._apply_to_global_config(scene)
+                scene_config = config_data.get(scene, {})
+                if scene_config.get("binding") == binding:
+                    self._apply_to_global_config(scene)
 
     def get_provider_status(self) -> Dict[str, Dict[str, str]]:
         """获取服务商统一配置状态（不返回明文 Key）。"""
         config_data = self._load_config()
         sync_data = config_data.get("model_sync", {})
         return {
+            "openai": {
+                "label": "DeepSeek",
+                "has_api_key": bool(self.get_provider_api_key("openai", force_reload=False)),
+                "host": "https://api.deepseek.com",
+                "last_synced_at": "",
+                "last_error": ""
+            },
             "siliconflow": {
+                "label": "SiliconFlow",
                 "has_api_key": bool(self.get_provider_api_key("siliconflow", force_reload=False)),
                 "host": "https://api.siliconflow.cn/v1",
                 "last_synced_at": sync_data.get("siliconflow", {}).get("last_synced_at", ""),

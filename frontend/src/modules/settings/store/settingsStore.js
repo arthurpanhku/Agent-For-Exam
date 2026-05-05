@@ -32,11 +32,20 @@ export const useSettingsStore = defineStore('settings', () => {
   })
   
   const modelLists = ref({
+    openai: [],
     siliconflow: []
   })
 
   const providers = ref({
+    openai: {
+      label: 'DeepSeek',
+      has_api_key: false,
+      host: 'https://api.deepseek.com',
+      last_synced_at: '',
+      last_error: ''
+    },
     siliconflow: {
+      label: 'SiliconFlow',
       has_api_key: false,
       host: 'https://api.siliconflow.cn/v1',
       last_synced_at: '',
@@ -126,6 +135,18 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  async function testLLMConfig(payload) {
+    loading.value = true
+    try {
+      return await settingsService.testLLMConfig(payload)
+    } catch (error) {
+      console.error('LLM 联通测试失败:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     configs,
     modelLists,
@@ -134,7 +155,7 @@ export const useSettingsStore = defineStore('settings', () => {
     loadConfig,
     updateConfig,
     updateProviderAPIKey,
-    refreshProviderModels
+    refreshProviderModels,
+    testLLMConfig
   }
 })
-
