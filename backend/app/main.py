@@ -7,6 +7,7 @@ from app.api import conversations, documents, graph, images, mindmap_routes, sub
 from app.api import settings as settings_api
 from app.api import subject_documents
 from app.api import exams
+from app.api import flashcards, analytics, audio_overview
 from app.services.config_service import config_service
 from app.middleware.http import APIKeyMiddleware, RequestIDMiddleware
 from app.openapi import build_custom_openapi
@@ -69,6 +70,9 @@ app.include_router(mindmap_routes.router)
 app.include_router(settings_api.router)
 app.include_router(exams.router)
 app.include_router(studyforge_ai.router)
+app.include_router(flashcards.router)
+app.include_router(analytics.router)
+app.include_router(audio_overview.router)
 
 # 启动时加载配置
 @app.on_event("startup")

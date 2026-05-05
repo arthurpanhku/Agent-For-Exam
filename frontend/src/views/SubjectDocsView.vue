@@ -23,6 +23,18 @@
       </div>
     </header>
 
+    <!-- Audio Overview panel -->
+    <section class="resource-section audio-overview-section">
+      <div class="section-header">
+        <h3 class="section-title">
+          <el-icon><Microphone /></el-icon>
+          Audio Overview
+        </h3>
+        <p class="section-desc">AI-generated podcast-style summary you can listen to in your browser.</p>
+      </div>
+      <AudioOverviewPanel v-if="subjectId" :subject-id="subjectId" />
+    </section>
+
     <!-- Dataset description (per subject, persisted server-side) -->
     <section class="resource-section dataset-desc-section">
       <div class="section-header">
@@ -408,7 +420,8 @@
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, UploadFilled, ChatLineRound, Folder, Edit, More, DataAnalysis, Notebook } from '@element-plus/icons-vue'
+import { Document, UploadFilled, ChatLineRound, Folder, Edit, More, DataAnalysis, Notebook, Microphone } from '@element-plus/icons-vue'
+import AudioOverviewPanel from '../modules/audio/components/AudioOverviewPanel.vue'
 import { useConversationStore } from '../modules/chat/store/conversationStore'
 import { useDocumentStore } from '../modules/documents/store/documentStore'
 import { useSubjectStore } from '../modules/subjects/store/subjectStore'
