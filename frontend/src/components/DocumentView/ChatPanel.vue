@@ -180,30 +180,50 @@
     <!-- 输入区域 -->
     <div class="input-container">
       <div class="input-toolbar">
-        <el-select
-          v-model="selectedMode"
-          size="small"
-          style="width: 120px;"
-          placeholder="查询模式"
-          :disabled="!graphReady || agentModeEnabled"
+        <el-tooltip
+          :visible="modeGuideVisible"
+          manual
+          placement="top-start"
+          popper-class="retrieval-mode-guide"
+          content="Local: definitions and formulas. Mix: general questions. Global: cross-chapter synthesis; verify precise facts."
         >
-          <el-option label="简单模式" value="naive" />
-          <el-option 
-            label="混合模式" 
-            value="mix" 
-            :disabled="!graphReady"
-          />
-          <el-option 
-            label="本地模式" 
-            value="local" 
-            :disabled="!graphReady"
-          />
-          <el-option 
-            label="全局模式" 
-            value="global"
-            :disabled="!graphReady"
-          /> 
-        </el-select>
+          <el-select
+            v-model="selectedMode"
+            size="small"
+            style="width: 132px;"
+            placeholder="查询模式"
+            :disabled="!graphReady || agentModeEnabled"
+            @visible-change="dismissModeGuide"
+            @change="dismissModeGuide"
+          >
+            <el-option label="Simple" value="naive" />
+            <el-option
+              label="Mix"
+              value="mix"
+              :disabled="!graphReady"
+            />
+            <el-option
+              label="Local"
+              value="local"
+              :disabled="!graphReady"
+            />
+            <el-option
+              label="Global"
+              value="global"
+              :disabled="!graphReady"
+            />
+          </el-select>
+        </el-tooltip>
+        <el-tag class="mode-chip" size="small" :type="selectedMode === 'global' ? 'warning' : 'info'">
+          {{ agentModeEnabled ? 'Agent' : modeLabel }}
+        </el-tag>
+        <el-tooltip
+          v-if="selectedMode === 'global' && !agentModeEnabled"
+          content="Global synthesis mode: verify exact definitions and formulas against cited sources."
+          placement="top"
+        >
+          <el-icon class="warning-icon"><Warning /></el-icon>
+        </el-tooltip>
         <el-switch
           v-model="agentModeEnabled"
           active-text="助手"
@@ -282,7 +302,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { Promotion, Warning, InfoFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { marked } from 'marked'
@@ -310,6 +330,7 @@ const docStore = useDocumentStore()
 const messagesContainer = ref(null)
 const inputText = ref('')
 const selectedMode = ref('naive')
+const modeGuideVisible = ref(false)
 const isStreaming = ref(false)
 const currentStreamContent = ref('')
 const currentStreamWarning = ref('')
@@ -329,6 +350,29 @@ const variantCount = ref(3)
 const variantDifficulty = ref('medium')
 const variantLoading = ref(false)
 const variantQuestions = ref([])
+const modeLabel = computed(() => {
+  const labels = {
+    naive: 'Simple',
+    mix: 'Mix',
+    local: 'Local',
+    global: 'Global'
+  }
+  return labels[selectedMode.value] || selectedMode.value
+})
+
+onMounted(() => {
+  if (typeof window !== 'undefined' && !window.localStorage.getItem('studyforge.retrievalModeGuideSeen')) {
+    modeGuideVisible.value = true
+  }
+})
+
+const dismissModeGuide = () => {
+  if (!modeGuideVisible.value) return
+  modeGuideVisible.value = false
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem('studyforge.retrievalModeGuideSeen', '1')
+  }
+}
 
 // 检查消息是否有有效内容
 const hasValidContent = (message) => {
@@ -754,7 +798,8 @@ const handleSend = async () => {
         fullContent,
         finalToolCalls,
         streamItems.value.length > 0 ? [...streamItems.value] : null,
-        citationSnapshot
+        citationSnapshot,
+        mode
       )
     }
     
@@ -1089,7 +1134,11 @@ const formatMarkdown = (text) => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 0;
+  gap: 6px;
+}
+
+.mode-chip {
+  font-weight: 600;
 }
 
 .input-area {
@@ -1370,4 +1419,3 @@ const formatMarkdown = (text) => {
   font-style: italic;
 }
 </style>
-

@@ -55,6 +55,7 @@ class TraceStorage:
         thinking_blocks: List[Dict[str, Any]],
         tool_calls: List[Dict[str, Any]],
         status: Optional[str] = None,
+        error_type: Optional[str] = None,
     ) -> None:
         """就地更新该 Sub 的 thinking_blocks / tool_calls（及可选 status），刷新后可加载未完成内容"""
         lock = _get_lock(conversation_id)
@@ -72,6 +73,8 @@ class TraceStorage:
                     items[i] = {**it, "thinking_blocks": thinking_blocks, "tool_calls": tool_calls}
                     if status is not None:
                         items[i]["status"] = status
+                    if error_type is not None:
+                        items[i]["error_type"] = error_type
                     break
             else:
                 return

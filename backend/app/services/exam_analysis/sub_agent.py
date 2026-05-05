@@ -20,6 +20,10 @@ from app.services.exam_analysis.tools import (
 
 # Sub Agent 最大工具调用轮数（每轮可包含多次工具调用）
 MAX_TOOL_ROUNDS = 50
+ERROR_NETWORK_TIMEOUT = "network_timeout"
+ERROR_MODEL_REFUSAL = "model_refusal"
+ERROR_INDEX_INCOMPLETE = "index_incomplete"
+ERROR_UNKNOWN = "unknown"
 
 SYSTEM_PROMPT = """你是试题分析助手。任务：为给定的题目建立「试题 — 知识点 — 讲义页码」映射。
 步骤：1) 用 query_knowledge_base 检索与题目相关的内容；2) 用 locate_knowledge_pages 根据检索到的实体或关键词定位文档与页码；3) 用 submit_draft_mapping 提交候选映射。
@@ -72,6 +76,20 @@ TOOLS_OPENAI = [
 ]
 
 
+def _classify_llm_error(error: Any, status: Optional[int] = None, body: str = "") -> str:
+    """Map provider failures to user-facing trace error types."""
+    text = f"{error or ''} {body or ''}".lower()
+    if isinstance(error, (asyncio.TimeoutError, aiohttp.ServerTimeoutError)) or status in (408, 504):
+        return ERROR_NETWORK_TIMEOUT
+    if any(token in text for token in ("timeout", "timed out", "connection reset", "temporarily unavailable")):
+        return ERROR_NETWORK_TIMEOUT
+    if status in (400, 403) and any(token in text for token in ("refusal", "content_filter", "safety", "policy")):
+        return ERROR_MODEL_REFUSAL
+    if any(token in text for token in ("refusal", "content_filter", "safety", "policy", "refused")):
+        return ERROR_MODEL_REFUSAL
+    return ERROR_UNKNOWN
+
+
 async def _call_llm(
     messages: List[Dict],
     tools: List[Dict],
@@ -108,23 +126,36 @@ async def _call_llm(
                     try:
                         data = json.loads(text) if text else {}
                     except json.JSONDecodeError:
-                        return {"error": "LLM 返回无效 JSON"}
+                        return {"error": "LLM 返回无效 JSON", "error_type": ERROR_UNKNOWN}
                     choices = data.get("choices", [])
                     if not choices:
-                        return {"error": "LLM 返回无 choices"}
-                    return choices[0].get("message", {})
+                        return {"error": "LLM 返回无 choices", "error_type": ERROR_UNKNOWN}
+                    choice = choices[0]
+                    finish_reason = choice.get("finish_reason")
+                    message = choice.get("message", {}) or {}
+                    if finish_reason in ("content_filter", "safety") or message.get("refusal"):
+                        return {
+                            "error": "模型拒绝了本次试题分析请求",
+                            "error_type": ERROR_MODEL_REFUSAL,
+                        }
+                    return message
                 last_error = f"LLM {status}: {text[:200]}"
+                error_type = _classify_llm_error(last_error, status=status, body=text)
                 if status in no_retry_statuses:
-                    return {"error": last_error}
+                    return {"error": last_error, "error_type": error_type}
                 logger.warning("exam_analysis LLM 非 200 attempt=%s status=%s", attempt, status)
                 if attempt < max_attempts:
                     if on_retry:
                         on_retry(attempt, max_attempts, last_error)
                     await asyncio.sleep([10, 20, 40][attempt - 1])
                 else:
-                    return {"error": f"LLM 请求失败（已重试 {max_attempts} 次）: {last_error}"}
+                    return {
+                        "error": f"LLM 请求失败（已重试 {max_attempts} 次）: {last_error}",
+                        "error_type": error_type,
+                    }
             except Exception as e:
                 last_error = str(e)
+                error_type = _classify_llm_error(e)
                 logger.warning(
                     "exam_analysis LLM 请求异常 attempt=%s url=%s err=%s",
                     attempt, url, last_error,
@@ -135,8 +166,11 @@ async def _call_llm(
                         on_retry(attempt, max_attempts, last_error)
                     await asyncio.sleep([10, 20, 40][attempt - 1])
                 else:
-                    return {"error": f"LLM 请求失败（已重试 {max_attempts} 次）: {last_error}"}
-    return {"error": f"LLM 请求失败（已重试 {max_attempts} 次）: {last_error}"}
+                    return {
+                        "error": f"LLM 请求失败（已重试 {max_attempts} 次）: {last_error}",
+                        "error_type": error_type,
+                    }
+    return {"error": f"LLM 请求失败（已重试 {max_attempts} 次）: {last_error}", "error_type": ERROR_UNKNOWN}
 
 
 async def _execute_tool(
@@ -206,12 +240,19 @@ async def run_sub_agent(
     for _ in range(MAX_TOOL_ROUNDS):
         msg = await _call_llm(messages, TOOLS_OPENAI, on_retry=_on_retry)
         if msg.get("error"):
-            block = {"title": "错误", "content": msg["error"], "sequence": len(thinking_blocks), "step": step_index[0]}
+            error_type = msg.get("error_type") or ERROR_UNKNOWN
+            block = {
+                "title": "错误",
+                "content": msg["error"],
+                "error_type": error_type,
+                "sequence": len(thinking_blocks),
+                "step": step_index[0],
+            }
             step_index[0] += 1
             thinking_blocks.append(block)
             if emit:
-                emit({"type": "sub_thinking", "agent_id": agent_id, "block": block})
-            TraceStorage.update_sub_trace(conversation_id, agent_id, thinking_blocks, tool_calls_log)
+                emit({"type": "sub_thinking", "agent_id": agent_id, "block": block, "error_type": error_type})
+            TraceStorage.update_sub_trace(conversation_id, agent_id, thinking_blocks, tool_calls_log, status="failed")
             break
         content = (msg.get("content") or "").strip()
         if content:
@@ -263,7 +304,8 @@ async def run_sub_agent(
         "role": "sub",
         "label": label,
         "lead_id": lead_id,
-        "status": "done",
+        "status": "failed" if any(block.get("error_type") for block in thinking_blocks) else "done",
+        "error_type": next((block.get("error_type") for block in thinking_blocks if block.get("error_type")), None),
         "thinking_blocks": thinking_blocks,
         "tool_calls": tool_calls_log,
         "updated_at": None,

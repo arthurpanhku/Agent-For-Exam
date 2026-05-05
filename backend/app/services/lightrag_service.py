@@ -82,6 +82,9 @@ class LightRAGService:
             working_dir=str(working_dir),
             llm_model_func=llm_func,
             embedding_func=embedding_func,
+            embedding_batch_num=max(1, config.settings.embedding_batch_size),
+            embedding_func_max_async=max(1, config.settings.embedding_max_async),
+            llm_model_max_async=max(1, config.settings.max_async),
             kv_storage=config.settings.lightrag_kv_storage,
             vector_storage=config.settings.lightrag_vector_storage,
             graph_storage=config.settings.lightrag_graph_storage,
@@ -334,10 +337,32 @@ class LightRAGService:
             if doc_id and progress.get("doc_id") != doc_id:
                 return None
             
-            return progress
+            return self._split_processing_progress(progress)
         except Exception as e:
             # 如果 pipeline_status 未初始化或出错，返回 None
             return None
+
+    def _split_processing_progress(self, progress: Dict[str, Any]) -> Dict[str, Any]:
+        """Expose coarse embedding and graph-extraction progress separately for UI status."""
+        normalized = dict(progress)
+        stage = str(progress.get("stage") or progress.get("message") or "").lower()
+        percentage = float(progress.get("percentage") or 0)
+
+        embedding_progress = {
+            "stage": "embedding",
+            "percentage": percentage if "embed" in stage or "vector" in stage else (100 if percentage >= 100 else 0),
+            "current": progress.get("current", 0) if "embed" in stage or "vector" in stage else 0,
+            "total": progress.get("total", 0) if "embed" in stage or "vector" in stage else 0,
+        }
+        graph_extraction_progress = {
+            "stage": "graph_extraction",
+            "percentage": percentage if any(token in stage for token in ("graph", "entity", "relation", "extract")) else (100 if percentage >= 100 else 0),
+            "current": progress.get("current", 0) if any(token in stage for token in ("graph", "entity", "relation", "extract")) else 0,
+            "total": progress.get("total", 0) if any(token in stage for token in ("graph", "entity", "relation", "extract")) else 0,
+        }
+        normalized["embedding_progress"] = embedding_progress
+        normalized["graph_extraction_progress"] = graph_extraction_progress
+        return normalized
     
     async def query(self, conversation_id: str, query: str, mode: str = "mix", conversation_history: Optional[List[Dict[str, str]]] = None) -> Any:
         """在指定对话的知识图谱中查询（使用聊天场景配置）

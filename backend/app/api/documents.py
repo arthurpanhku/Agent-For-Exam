@@ -14,6 +14,8 @@ class DocumentResponse(BaseModel):
     filename: str
     file_size: int
     status: str
+    content_hash: Optional[str] = None
+    version: Optional[int] = None
 
 class DocumentDetailResponse(BaseModel):
     file_id: str
@@ -24,6 +26,9 @@ class DocumentDetailResponse(BaseModel):
     upload_time: str
     status: str
     lightrag_track_id: Optional[str] = None
+    content_hash: Optional[str] = None
+    version: Optional[int] = None
+    replaces_document_ids: List[str] = []
 
 class DocumentListResponse(BaseModel):
     documents: List[DocumentDetailResponse]

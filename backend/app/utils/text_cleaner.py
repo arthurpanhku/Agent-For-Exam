@@ -15,6 +15,82 @@ from typing import Dict, List, Tuple
 import json
 
 
+class MathExpressionProtector:
+    """Protect compact math expressions so extraction prompts treat them as one unit."""
+
+    PLACEHOLDER_PREFIX = "MATH_EXPR"
+    # Ordered from most explicit to most compact. Keep placeholders ASCII-safe for LLM tools.
+    MATH_PATTERNS = [
+        re.compile(r"(?<!\\)\$\$.*?(?<!\\)\$\$", re.DOTALL),
+        re.compile(r"(?<!\\)\$[^$\n]{2,120}(?<!\\)\$"),
+        re.compile(r"\\\([^\n]{2,120}?\\\)"),
+        re.compile(r"\\\[[\s\S]{2,240}?\\\]"),
+        re.compile(
+            r"(?<![\w\]])(?:[A-Za-zΑ-Ωα-ω][\wΑ-Ωα-ω]*|[Α-Ωα-ω])"
+            r"(?:\s*(?:[+\-*/=^]|≤|≥|≈|≠|∈|∉|⊂|⊆|∪|∩|→|↦|∇|∂|Σ|∑|Π|∏|√)\s*"
+            r"(?:[A-Za-zΑ-Ωα-ω][\wΑ-Ωα-ω]*|\d+(?:\.\d+)?|[Α-Ωα-ω]|\([^)\n]{1,60}\)))+"
+            r"(?:\([^)\n]{1,60}\))?",
+        ),
+        re.compile(
+            r"(?<![\w\]])[Α-Ωα-ω][\wΑ-Ωα-ω]*"
+            r"(?:\s*(?:∇|∂|Σ|∑|Π|∏|√|[+\-*/=^])\s*"
+            r"[A-Za-zΑ-Ωα-ω][\wΑ-Ωα-ω]*(?:\([^)\n]{1,60}\))?)+"
+        ),
+    ]
+
+    @classmethod
+    def protect(cls, text: str) -> Tuple[str, Dict[str, str]]:
+        """Replace math expressions with [MATH_EXPR_N] placeholders."""
+        if not text:
+            return text, {}
+
+        math_map: Dict[str, str] = {}
+        protected = text
+
+        def replace(match):
+            expr = match.group(0).strip()
+            if not cls._looks_like_math(expr):
+                return match.group(0)
+            key = str(len(math_map) + 1)
+            placeholder = f"[{cls.PLACEHOLDER_PREFIX}_{key}]"
+            math_map[placeholder] = expr
+            return placeholder
+
+        for pattern in cls.MATH_PATTERNS:
+            protected = pattern.sub(replace, protected)
+
+        return protected, math_map
+
+    @staticmethod
+    def restore(text: str, math_map: Dict[str, str]) -> str:
+        """Restore [MATH_EXPR_N] placeholders to their original expressions."""
+        restored = text
+        for placeholder, expr in math_map.items():
+            restored = restored.replace(placeholder, expr)
+        return restored
+
+    @staticmethod
+    def _looks_like_math(expr: str) -> bool:
+        if len(expr) < 2:
+            return False
+        math_symbols = set("=+-*/^_()[]{}<>≤≥≈≠∈∉⊂⊆∪∩→↦∇∂Σ∑Π∏√")
+        has_symbol = any(ch in math_symbols for ch in expr)
+        has_greek = bool(re.search(r"[Α-Ωα-ω]", expr))
+        has_latex = "\\" in expr or expr.startswith("$")
+        has_digit_and_operator = bool(re.search(r"\d", expr) and re.search(r"[=+\-*/^]", expr))
+        return has_symbol and (has_greek or has_latex or has_digit_and_operator or "(" in expr)
+
+
+def protect_math_expressions(text: str) -> Tuple[str, Dict[str, str]]:
+    """Public helper used before graph/entity extraction prompts."""
+    return MathExpressionProtector.protect(text)
+
+
+def restore_math_placeholders(text: str, math_map: Dict[str, str]) -> str:
+    """Public helper used after graph/entity extraction prompts."""
+    return MathExpressionProtector.restore(text, math_map)
+
+
 class TextCleaner:
     """文本清洗器"""
     

@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     embedding_model: str = "Qwen/Qwen3-Embedding-0.6B"
     embedding_dim: int = 1024
     embedding_binding_host: str = "https://api.siliconflow.cn/v1"
+    embedding_batch_size: int = 16
+    embedding_max_async: int = 4
+    enable_vision_extraction: bool = False
     
     # 文件上传配置
     upload_dir: str = str(BASE_DIR / "uploads")

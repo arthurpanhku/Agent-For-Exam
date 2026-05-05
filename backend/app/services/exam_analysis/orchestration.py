@@ -8,6 +8,7 @@ from app.services.graph_service import GraphService
 from app.services.exam_analysis.event_bus import emit as event_emit
 from app.services.exam_analysis.hooks import default_hooks
 from app.services.exam_analysis.sub_agent import run_sub_agent
+from app.services.exam_analysis.sub_agent import ERROR_INDEX_INCOMPLETE
 from app.services.exam_analysis.trace_storage import TraceStorage
 from app.services.exam_analysis.report_aggregation import build_report
 
@@ -37,7 +38,7 @@ async def _run_exam_mapping(
     subject_id: str,
     exam_id: str,
     batch_size: int = DEFAULT_BATCH_SIZE,
-) -> None:
+) -> List[Dict[str, Any]]:
     """
     Orchestrator 内部逻辑：拉取该试卷题目、按批派发 Sub、写轨迹与事件。
     原 Lead Agent 职责已收敛于此，不再单独模块。
@@ -45,10 +46,10 @@ async def _run_exam_mapping(
     storage = ExamStorage()
     exam = storage.get_exam(exam_id)
     if not exam or not exam.questions:
-        return
+        return []
     questions_data = _flatten_questions(exam.questions)
     if not questions_data:
-        return
+        return []
     year = getattr(exam, "year", None) or ""
     label = f"年份 Lead · {year}"
     lead_id = f"lead-{exam_id}"
@@ -76,7 +77,7 @@ async def _run_exam_mapping(
     def _emit(ev: Dict[str, Any]) -> None:
         event_emit(conversation_id, ev)
 
-    async def run_batch(start_i: int) -> None:
+    async def run_batch(start_i: int) -> Dict[str, Any]:
         batch = questions_data[start_i : start_i + batch_size]
         sub_id = f"sub-{exam_id}-{start_i // batch_size}"
         sub_label = f"题目  · {batch[0]['id']}-{batch[-1]['id']}"
@@ -105,20 +106,43 @@ async def _run_exam_mapping(
             )
         async with append_lock:
             default_hooks.agents.on_subagent_end(conversation_id, sub_trace)
+        return sub_trace
 
-    await asyncio.gather(*[run_batch(i) for i in batch_starts])
+    sub_traces = await asyncio.gather(*[run_batch(i) for i in batch_starts])
+    success = not any(trace.get("status") == "failed" for trace in sub_traces)
 
     lead_done: Dict[str, Any] = {
         "agent_id": f"{lead_id}-done",
         "role": "lead",
-        "label": label + " · 完成",
-        "status": "done",
-        "thinking_blocks": [{"title": "完成", "content": f"试卷 {exam_id} 已处理完毕。", "sequence": 0}],
+        "label": label + (" · 完成" if success else " · 部分失败"),
+        "status": "done" if success else "failed",
+        "thinking_blocks": [{"title": "完成" if success else "部分失败", "content": f"试卷 {exam_id} 已处理完毕。", "sequence": 0}],
         "tool_calls": [],
         "updated_at": None,
     }
     default_hooks.agents.on_lead_end(conversation_id, lead_done)
-    default_hooks.pipeline.on_pipeline_exam_end(conversation_id, subject_id, exam_id, True)
+    default_hooks.pipeline.on_pipeline_exam_end(conversation_id, subject_id, exam_id, success)
+    return sub_traces
+
+
+def _subject_index_status(subject_id: str) -> Dict[str, Any]:
+    from app.services.document_service import DocumentService
+
+    doc_service = DocumentService()
+    documents = doc_service.list_documents_for_subject(subject_id)
+    total = len(documents)
+    completed = len([doc for doc in documents if doc.get("status") == "completed"])
+    incomplete = [
+        {"file_id": doc.get("file_id"), "filename": doc.get("filename"), "status": doc.get("status")}
+        for doc in documents
+        if doc.get("status") != "completed"
+    ]
+    return {
+        "ready": total > 0 and completed == total,
+        "total": total,
+        "completed": completed,
+        "incomplete": incomplete,
+    }
 
 
 async def run_analysis(conversation_id: str) -> None:
@@ -142,14 +166,54 @@ async def run_analysis(conversation_id: str) -> None:
     default_hooks.pipeline.on_pipeline_start(conversation_id, subject_id, selected_exam_ids)
     await wait_for_subscriber(conversation_id)
     event_emit(conversation_id, {"type": "analysis_started", "conversation_id": conversation_id})
+    index_status = _subject_index_status(subject_id)
+    if not index_status["ready"]:
+        error_event = {
+            "type": "analysis_error",
+            "conversation_id": conversation_id,
+            "error_type": ERROR_INDEX_INCOMPLETE,
+            "message": "请先完成文档索引后再启动试题分析",
+            "index_status": index_status,
+        }
+        event_emit(conversation_id, error_event)
+        TraceStorage.append_trace(conversation_id, {
+            "agent_id": "pipeline-index-check",
+            "role": "pipeline",
+            "label": "索引检查",
+            "status": "failed",
+            "error_type": ERROR_INDEX_INCOMPLETE,
+            "thinking_blocks": [{
+                "title": "索引未完成",
+                "content": error_event["message"],
+                "error_type": ERROR_INDEX_INCOMPLETE,
+                "sequence": 0,
+            }],
+            "tool_calls": [],
+            "updated_at": None,
+        })
+        default_hooks.pipeline.on_pipeline_end(conversation_id, False)
+        event_emit(conversation_id, {"type": "stream_end"})
+        return
     graph = GraphService()
     await graph.build_entity_page_mapping(subject_id)
+    all_sub_traces: List[Dict[str, Any]] = []
     for exam_id in selected_exam_ids:
-        await _run_exam_mapping(conversation_id=conversation_id, subject_id=subject_id, exam_id=exam_id, batch_size=DEFAULT_BATCH_SIZE)
-    default_hooks.pipeline.on_pipeline_end(conversation_id, True)
-    event_emit(conversation_id, {"type": "analysis_done"})
+        sub_traces = await _run_exam_mapping(conversation_id=conversation_id, subject_id=subject_id, exam_id=exam_id, batch_size=DEFAULT_BATCH_SIZE)
+        all_sub_traces.extend(sub_traces)
+    success = not any(trace.get("status") == "failed" for trace in all_sub_traces)
+    default_hooks.pipeline.on_pipeline_end(conversation_id, success)
+    if success:
+        event_emit(conversation_id, {"type": "analysis_done"})
+    else:
+        failed = next((trace for trace in all_sub_traces if trace.get("status") == "failed"), {})
+        event_emit(conversation_id, {
+            "type": "analysis_error",
+            "conversation_id": conversation_id,
+            "error_type": failed.get("error_type") or "unknown",
+            "message": "试题分析未完整完成",
+        })
     report = build_report(conversation_id)
-    if report:
+    if report and success:
         TraceStorage.save_report(conversation_id, report)
         default_hooks.pipeline.on_report_saved(conversation_id, {"has_report": True})
     event_emit(conversation_id, {"type": "stream_end"})

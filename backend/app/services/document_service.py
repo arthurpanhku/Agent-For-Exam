@@ -1,5 +1,6 @@
 """文档服务，处理文档上传、解析、LightRAG 集成"""
 import asyncio
+import hashlib
 import json
 import re
 import shutil
@@ -311,6 +312,14 @@ class DocumentService:
             is_valid, error_msg = await self._check_file_size(file_content)
             if not is_valid:
                 raise ValueError(error_msg)
+            content_hash = hashlib.sha256(file_content).hexdigest()
+            previous_versions = [
+                doc for doc in status.get("documents", {}).values()
+                if doc.get("filename") == file.filename and doc.get("content_hash") != content_hash
+            ]
+            version = max([int(doc.get("version", 1)) for doc in previous_versions] + [1])
+            if previous_versions:
+                version += 1
 
             file_info = self.file_manager.save_file(
                 conversation_id=conversation_id,
@@ -330,6 +339,9 @@ class DocumentService:
                 "upload_time": now,
                 "status": "pending",
                 "lightrag_track_id": None,
+                "content_hash": content_hash,
+                "version": version,
+                "replaces_document_ids": [doc.get("file_id") for doc in previous_versions if doc.get("file_id")],
             }
 
             st = self._load_status(conversation_id)
@@ -342,6 +354,8 @@ class DocumentService:
                 "filename": file.filename,
                 "file_size": file_info["file_size"],
                 "status": "pending",
+                "content_hash": content_hash,
+                "version": version,
             })
 
         return {"conversation_id": conversation_id, "uploaded_files": uploaded_files, "total_files": len(uploaded_files)}
@@ -481,6 +495,14 @@ class DocumentService:
             is_valid, error_msg = await self._check_file_size(file_content)
             if not is_valid:
                 raise ValueError(error_msg)
+            content_hash = hashlib.sha256(file_content).hexdigest()
+            previous_versions = [
+                doc for doc in status.get("documents", {}).values()
+                if doc.get("filename") == file.filename and doc.get("content_hash") != content_hash
+            ]
+            version = max([int(doc.get("version", 1)) for doc in previous_versions] + [1])
+            if previous_versions:
+                version += 1
 
             file_info = self.file_manager.save_file_for_subject(
                 subject_id=subject_id,
@@ -500,6 +522,9 @@ class DocumentService:
                 "upload_time": now,
                 "status": "pending",
                 "lightrag_track_id": None,
+                "content_hash": content_hash,
+                "version": version,
+                "replaces_document_ids": [doc.get("file_id") for doc in previous_versions if doc.get("file_id")],
             }
 
             st = self._load_subject_status(subject_id)
@@ -511,6 +536,8 @@ class DocumentService:
                 "filename": file.filename,
                 "file_size": file_info["file_size"],
                 "status": "pending",
+                "content_hash": content_hash,
+                "version": version,
             })
 
         return {"subject_id": subject_id, "uploaded_files": uploaded_files, "total_files": len(uploaded_files)}

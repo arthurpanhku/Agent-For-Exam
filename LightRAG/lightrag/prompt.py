@@ -75,6 +75,20 @@ relation{tuple_delimiter}Loan-Default Case Study{tuple_delimiter}Risk Scoring Ap
 {completion_delimiter}
 
 """,
+    """<Input Text>
+```
+Gradient descent updates parameters with [MATH_EXPR_1]. The learning rate controls the update step, and the loss gradient points toward the steepest increase.
+```
+
+<Output>
+entity{tuple_delimiter}Gradient Descent Update{tuple_delimiter}Method{tuple_delimiter}Gradient Descent Update is the method that changes parameters using the full mathematical update expression.
+entity{tuple_delimiter}Learning Rate{tuple_delimiter}Parameter{tuple_delimiter}Learning Rate controls the step size used by the gradient descent update.
+entity{tuple_delimiter}Loss Gradient{tuple_delimiter}ChapterConcept{tuple_delimiter}Loss Gradient is presented as the direction information used in the update rule.
+relation{tuple_delimiter}Gradient Descent Update{tuple_delimiter}Learning Rate{tuple_delimiter}Uses{tuple_delimiter}Gradient Descent Update uses Learning Rate to control how far parameters move.
+relation{tuple_delimiter}Gradient Descent Update{tuple_delimiter}Loss Gradient{tuple_delimiter}Uses{tuple_delimiter}Gradient Descent Update uses Loss Gradient instead of splitting the formula into symbol-only entities.
+{completion_delimiter}
+
+""",
 ]
 
 PROMPTS["summarize_entity_descriptions"] = """---Role---

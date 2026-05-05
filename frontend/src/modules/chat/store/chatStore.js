@@ -84,11 +84,11 @@ export const useChatStore = defineStore('chat', () => {
     await chatService.queryStream(conversationId, query, mode, agentIntent, onChunk, streamOptions)
   }
   
-  async function saveMessage(conversationId, query, answer, toolCalls = null, streamItems = null, citationAnalysis = null) {
+  async function saveMessage(conversationId, query, answer, toolCalls = null, streamItems = null, citationAnalysis = null, queryMode = null) {
     if (!conversationId) return
     
     try {
-      await chatService.saveMessage(conversationId, query, answer, toolCalls, streamItems, citationAnalysis)
+      await chatService.saveMessage(conversationId, query, answer, toolCalls, streamItems, citationAnalysis, queryMode)
     } catch (error) {
       console.error('保存消息失败:', error)
     }
@@ -112,5 +112,4 @@ export const useChatStore = defineStore('chat', () => {
     clearMessages
   }
 })
-
 

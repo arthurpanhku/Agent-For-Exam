@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.services.subject_service import SubjectService
 from app.services.conversation_service import ConversationService
+from app.services.graph_service import GraphService
 from app.api.conversations import ConversationResponse, ConversationListResponse
 
 
@@ -24,6 +25,16 @@ class SubjectResponse(BaseModel):
     dataset_description: str
     created_at: str
     updated_at: str
+
+
+class GraphStatsResponse(BaseModel):
+    node_count: int
+    edge_count: int
+    average_degree: float
+    orphan_node_count: int
+    orphan_node_ratio: float
+    previous: dict = {}
+    deltas: dict = {}
 
 
 @router.post("", response_model=SubjectResponse, status_code=status.HTTP_201_CREATED)
@@ -60,6 +71,25 @@ async def get_subject(subject_id: str) -> SubjectResponse:
             detail=f"知识库 {subject_id} 不存在",
         )
     return SubjectResponse(**subject)
+
+
+@router.get("/{subject_id}/graph/stats", response_model=GraphStatsResponse)
+async def get_subject_graph_stats(subject_id: str) -> GraphStatsResponse:
+    service = SubjectService()
+    subject = service.get_subject(subject_id)
+    if not subject:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"知识库 {subject_id} 不存在",
+        )
+    try:
+        stats = await GraphService().get_graph_stats(subject_id)
+        return GraphStatsResponse(**stats)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取图谱健康指标失败: {str(e)}",
+        )
 
 
 class SubjectConversationCreateRequest(BaseModel):
@@ -171,5 +201,4 @@ async def delete_subject(subject_id: str):
         )
     
     return None
-
 

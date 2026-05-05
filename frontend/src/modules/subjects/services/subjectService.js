@@ -25,6 +25,10 @@ class SubjectService {
     return response
   }
 
+  async getGraphStats(subjectId) {
+    return api.get(`/api/subjects/${subjectId}/graph/stats`)
+  }
+
   async createConversationForSubject(subjectId, title = null, options = {}) {
     const body = { title: title ?? undefined }
     if (options.conversation_type) body.conversation_type = options.conversation_type
@@ -49,5 +53,4 @@ class SubjectService {
 }
 
 export default new SubjectService()
-
 

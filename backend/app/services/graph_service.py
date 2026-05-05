@@ -1,6 +1,8 @@
 """知识图谱服务"""
+import json
 from typing import List, Dict, Any, Optional, Set
 from pathlib import Path
+import app.config as config
 from app.services.lightrag_service import LightRAGService
 from app.services.document_service import DocumentService
 from app.services.memory_service import MemoryService
@@ -219,6 +221,63 @@ class GraphService:
             })
         
         return relation_list
+
+    async def get_graph_stats(self, target_id: str) -> Dict[str, Any]:
+        """Aggregate graph health metrics for teacher/TA dashboards."""
+        entities = await self.get_all_entities(target_id)
+        relations = await self.get_all_relations(target_id)
+        node_ids = {entity.get("entity_id") for entity in entities if entity.get("entity_id")}
+        degrees = {node_id: 0 for node_id in node_ids}
+        for rel in relations:
+            source = rel.get("source")
+            target = rel.get("target")
+            if source in degrees:
+                degrees[source] += 1
+            if target in degrees and target != source:
+                degrees[target] += 1
+        node_count = len(node_ids)
+        edge_count = len(relations)
+        orphan_count = len([node for node, degree in degrees.items() if degree == 0])
+        average_degree = (sum(degrees.values()) / node_count) if node_count else 0
+        orphan_node_ratio = (orphan_count / node_count) if node_count else 0
+        current = {
+            "node_count": node_count,
+            "edge_count": edge_count,
+            "average_degree": round(average_degree, 2),
+            "orphan_node_count": orphan_count,
+            "orphan_node_ratio": round(orphan_node_ratio, 4),
+        }
+        previous = self._load_graph_stats_snapshot(target_id)
+        deltas = {
+            key: round(current[key] - previous.get(key, 0), 4)
+            for key in current
+            if isinstance(current.get(key), (int, float))
+        }
+        return {**current, "previous": previous, "deltas": deltas}
+
+    def _graph_stats_snapshot_file(self, target_id: str) -> Path:
+        return Path(config.settings.conversations_metadata_dir) / "graph_stats" / f"{target_id}.json"
+
+    def _load_graph_stats_snapshot(self, target_id: str) -> Dict[str, Any]:
+        path = self._graph_stats_snapshot_file(target_id)
+        if not path.exists():
+            return {}
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    def _save_graph_stats_snapshot(self, target_id: str, stats: Dict[str, Any]) -> None:
+        path = self._graph_stats_snapshot_file(target_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        snapshot = {
+            key: stats[key]
+            for key in ("node_count", "edge_count", "average_degree", "orphan_node_count", "orphan_node_ratio")
+            if key in stats
+        }
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, ensure_ascii=False, indent=2)
     
     async def get_entity_detail(self, conversation_id: str, entity_id: str) -> Optional[Dict[str, Any]]:
         """获取实体详情
@@ -697,6 +756,12 @@ class GraphService:
             
             with open(map_file, 'w', encoding='utf-8') as f:
                 json.dump(entity_page_map, f, ensure_ascii=False, indent=2)
+
+            try:
+                stats = await self.get_graph_stats(subject_id)
+                self._save_graph_stats_snapshot(subject_id, stats)
+            except Exception as stats_error:
+                print(f"⚠️ 图谱健康快照保存失败: {stats_error}")
                 
             print(f"✅ 实体页码映射构建完成: {map_file}, 包含 {len(entity_page_map['entities'])} 个实体的映射")
             

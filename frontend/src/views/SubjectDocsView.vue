@@ -50,6 +50,44 @@
       </div>
     </section>
 
+    <section class="resource-section graph-health-section">
+      <div class="section-header graph-health-header">
+        <div>
+          <h3 class="section-title">
+            <el-icon><DataAnalysis /></el-icon>
+            Graph Health
+          </h3>
+          <p class="section-desc">Knowledge graph coverage and connectivity for this subject.</p>
+        </div>
+        <el-button size="small" plain :loading="graphStatsLoading" @click="loadGraphStats">Refresh</el-button>
+      </div>
+      <div v-if="graphStatsLoading" class="loading-state">
+        <el-skeleton :rows="1" animated />
+      </div>
+      <div v-else class="graph-health-grid">
+        <div class="metric-tile">
+          <span class="metric-label">Nodes</span>
+          <strong>{{ graphStats?.node_count ?? 0 }}</strong>
+          <small>{{ formatDelta(graphStats?.deltas?.node_count) }}</small>
+        </div>
+        <div class="metric-tile">
+          <span class="metric-label">Edges</span>
+          <strong>{{ graphStats?.edge_count ?? 0 }}</strong>
+          <small>{{ formatDelta(graphStats?.deltas?.edge_count) }}</small>
+        </div>
+        <div class="metric-tile">
+          <span class="metric-label">Average degree</span>
+          <strong>{{ graphStats?.average_degree ?? 0 }}</strong>
+          <small>{{ formatDelta(graphStats?.deltas?.average_degree) }}</small>
+        </div>
+        <div class="metric-tile" :class="{ warning: (graphStats?.orphan_node_ratio ?? 0) > 0.25 }">
+          <span class="metric-label">Orphan ratio</span>
+          <strong>{{ formatPercent(graphStats?.orphan_node_ratio) }}</strong>
+          <small>{{ formatDeltaPercent(graphStats?.deltas?.orphan_node_ratio) }}</small>
+        </div>
+      </div>
+    </section>
+
     <!-- ========== 上半部分：讲义/教材 (Courseware) ========== -->
     <section class="resource-section courseware-section">
       <div class="section-header">
@@ -408,6 +446,8 @@ const selectedExamIds = ref([])
 
 const datasetDescriptionDraft = ref('')
 const datasetSaving = ref(false)
+const graphStats = ref(null)
+const graphStatsLoading = ref(false)
 
 watch(
   () => subjectStore.currentSubject,
@@ -474,6 +514,7 @@ onMounted(async () => {
     subjectStore.selectSubject(id)
     await docStore.loadDocumentsForSubject(id)
     await examStore.loadExams({ subject: currentSubjectName.value })
+    await loadGraphStats()
   }
 })
 
@@ -489,6 +530,7 @@ watch(() => route.params.id, async (newId, oldId) => {
     subjectStore.selectSubject(newId)
     await docStore.loadDocumentsForSubject(newId)
     await examStore.loadExams({ subject: currentSubjectName.value })
+    await loadGraphStats()
   } else if (oldId) {
     docStore.clearDocumentsForSubject(oldId)
   }
@@ -502,6 +544,37 @@ const startChat = async () => {
   await convStore.refreshConversation(conv.conversation_id)
   convStore.selectConversation(conv.conversation_id)
   router.push(`/subject/${id}/chat/${conv.conversation_id}`)
+}
+
+async function loadGraphStats() {
+  const id = subjectId.value
+  if (!id) return
+  graphStatsLoading.value = true
+  try {
+    graphStats.value = await subjectService.getGraphStats(id)
+  } catch (error) {
+    console.error('Failed to load graph stats:', error)
+    graphStats.value = null
+  } finally {
+    graphStatsLoading.value = false
+  }
+}
+
+function formatPercent(value) {
+  const n = Number(value || 0)
+  return `${Math.round(n * 100)}%`
+}
+
+function formatDelta(value) {
+  const n = Number(value || 0)
+  if (!n) return 'no change'
+  return `${n > 0 ? '+' : ''}${n}`
+}
+
+function formatDeltaPercent(value) {
+  const n = Number(value || 0)
+  if (!n) return 'no change'
+  return `${n > 0 ? '+' : ''}${Math.round(n * 100)}%`
 }
 
 function openExamAnalysisDialog() {
@@ -1143,6 +1216,56 @@ const formatContent = (content, examId) => {
 
 .loading-state {
   padding: 20px 0;
+}
+
+.graph-health-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.graph-health-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-tile {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.metric-tile.warning {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.metric-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.metric-tile strong {
+  font-size: 24px;
+  color: var(--text-primary);
+}
+
+.metric-tile small {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 900px) {
+  .graph-health-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* Exam Detail Drawer */
