@@ -20,6 +20,11 @@ export const settingsService = {
     return response.data
   },
 
+  async testLLMConfig(payload) {
+    const response = await axios.post(`${API_BASE}/llm-test`, payload)
+    return response.data
+  },
+
   async refreshProviderModels(binding) {
     const response = await axios.post(`${API_BASE}/providers/${binding}/models/refresh`)
     return response.data
@@ -30,4 +35,3 @@ export const settingsService = {
     return response.data
   }
 }
-

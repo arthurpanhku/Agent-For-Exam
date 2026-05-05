@@ -10,6 +10,43 @@
         <div>
           <div class="provider-title">统一 API Key</div>
           <div class="provider-meta">
+            DeepSeek
+            <el-tag
+              size="small"
+              :type="providers.openai?.has_api_key ? 'success' : 'warning'"
+            >
+              {{ providers.openai?.has_api_key ? '已配置' : '未配置' }}
+            </el-tag>
+          </div>
+        </div>
+        <el-button size="small" @click="handleDeepseekTest" :loading="testingDeepseek">
+          测试 DeepSeek
+        </el-button>
+      </div>
+
+      <el-form label-width="120px" label-position="left">
+        <el-form-item label="API Key">
+          <el-input
+            v-model="deepseekApiKey"
+            type="password"
+            show-password
+            placeholder="输入 DeepSeek API Key"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleDeepseekKeySave" :loading="savingDeepseekKey">
+            保存 DeepSeek Key
+          </el-button>
+          <span class="sync-status">默认端点：https://api.deepseek.com</span>
+        </el-form-item>
+      </el-form>
+    </section>
+
+    <section class="provider-panel">
+      <div class="provider-header">
+        <div>
+          <div class="provider-title">嵌入/OCR API Key</div>
+          <div class="provider-meta">
             SiliconFlow
             <el-tag
               size="small"
@@ -54,6 +91,7 @@
           :model-lists="modelLists"
           default-binding="openai"
           @update="handleUpdate('knowledge_graph', $event)"
+          @test="handleTest('knowledge_graph', $event)"
         />
       </el-tab-pane>
       
@@ -63,6 +101,7 @@
           :model-lists="modelLists"
           default-binding="openai"
           @update="handleUpdate('chat', $event)"
+          @test="handleTest('chat', $event)"
         />
       </el-tab-pane>
       
@@ -72,6 +111,7 @@
           :model-lists="modelLists"
           default-binding="openai"
           @update="handleUpdate('mindmap', $event)"
+          @test="handleTest('mindmap', $event)"
         />
       </el-tab-pane>
       
@@ -81,6 +121,7 @@
           :model-lists="modelLists"
           default-binding="siliconflow"
           @update="handleUpdate('embedding', $event)"
+          @test="handleTest('embedding', $event)"
         />
       </el-tab-pane>
 
@@ -90,6 +131,7 @@
           :model-lists="modelLists"
           default-binding="siliconflow"
           @update="handleUpdate('ocr', $event)"
+          @test="handleTest('ocr', $event)"
         />
       </el-tab-pane>
     </el-tabs>
@@ -118,9 +160,12 @@ const emit = defineEmits(['update:modelValue'])
 const settingsStore = useSettingsStore()
 const dialogVisible = ref(false)
 const activeTab = ref('knowledge_graph')
+const deepseekApiKey = ref('')
 const providerApiKey = ref('')
+const savingDeepseekKey = ref(false)
 const savingProviderKey = ref(false)
 const refreshingModels = ref(false)
+const testingDeepseek = ref(false)
 
 const configs = computed(() => settingsStore.configs)
 const modelLists = computed(() => settingsStore.modelLists)
@@ -151,6 +196,53 @@ async function handleUpdate(scene, config) {
     ElMessage.success('配置已更新并立即生效')
   } catch (error) {
     ElMessage.error('更新配置失败: ' + (error.response?.data?.detail || error.message))
+  }
+}
+
+async function handleTest(scene, config) {
+  try {
+    const result = await settingsStore.testLLMConfig({
+      scene,
+      ...config
+    })
+    ElMessage.success(`LLM 联通成功，耗时 ${result.latency_ms}ms`)
+  } catch (error) {
+    ElMessage.error('LLM 联通测试失败: ' + (error.response?.data?.detail || error.message))
+  }
+}
+
+async function handleDeepseekKeySave() {
+  if (!deepseekApiKey.value.trim()) {
+    ElMessage.warning('请输入 DeepSeek API Key')
+    return
+  }
+
+  savingDeepseekKey.value = true
+  try {
+    await settingsStore.updateProviderAPIKey('openai', deepseekApiKey.value)
+    deepseekApiKey.value = ''
+    ElMessage.success('DeepSeek API Key 已保存')
+  } catch (error) {
+    ElMessage.error('保存 DeepSeek API Key 失败: ' + (error.response?.data?.detail || error.message))
+  } finally {
+    savingDeepseekKey.value = false
+  }
+}
+
+async function handleDeepseekTest() {
+  testingDeepseek.value = true
+  try {
+    const result = await settingsStore.testLLMConfig({
+      binding: 'openai',
+      model: configs.value.chat?.model || 'deepseek-v4-pro[1m]',
+      host: 'https://api.deepseek.com',
+      api_key: deepseekApiKey.value.trim() || undefined
+    })
+    ElMessage.success(`DeepSeek 联通成功，耗时 ${result.latency_ms}ms`)
+  } catch (error) {
+    ElMessage.error('DeepSeek 联通测试失败: ' + (error.response?.data?.detail || error.message))
+  } finally {
+    testingDeepseek.value = false
   }
 }
 
@@ -242,4 +334,3 @@ onMounted(() => {
   word-break: break-word;
 }
 </style>
-
