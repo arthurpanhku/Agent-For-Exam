@@ -158,6 +158,15 @@
         </div>
         <p class="progress-desc">分析流水线将在此展示各角色的推理步骤与工具调用</p>
       </div>
+      <el-alert
+        v-if="analysisError"
+        class="analysis-error"
+        type="warning"
+        :closable="false"
+        :title="analysisError.title"
+        :description="analysisError.description"
+        show-icon
+      />
       <div class="agent-trace-list">
         <AgentTracePanel
           v-for="lead in topLevelLeads"
@@ -226,6 +235,25 @@ let chartFrequencyBar = null
 let chartDistributionBar = null
 let chartDocDistPie = null
 const CHART_TOP_N = 12
+const analysisError = ref(null)
+const errorMessages = {
+  network_timeout: {
+    title: '提供商超时',
+    description: '模型或网络提供商暂时没有响应，可以稍后点击重试。'
+  },
+  model_refusal: {
+    title: '模型拒绝',
+    description: '模型拒绝了本次请求，可尝试缩小题目范围或调整提示。'
+  },
+  index_incomplete: {
+    title: '文档索引未完成',
+    description: '请先等待讲义/教材完成索引，再启动试题分析。'
+  },
+  unknown: {
+    title: '分析未完整完成',
+    description: '请查看轨迹中的错误信息后重试。'
+  }
+}
 // 仅展示 Lead 节点（不含 lead-xxx-done 的重复项），Sub 作为子项展示
 const topLevelLeads = computed(() =>
   agentTraceItems.value.filter((i) => i.role === 'lead' && !String(i.agent_id || '').endsWith('-done'))
@@ -245,6 +273,7 @@ function applyEvent(event) {
     case 'analysis_started':
       agentTraceItems.value = []
       allYearsAnalysisEnded.value = false
+      analysisError.value = null
       return
     case 'lead_started': {
       const existing = items.findIndex((i) => i.agent_id === event.agent_id)
@@ -263,7 +292,7 @@ function applyEvent(event) {
     case 'lead_done': {
       const leadId = String(event.agent_id || '').replace(/-done$/, '')
       const indices = items.map((i, idx) => (i.agent_id === leadId ? idx : -1)).filter((i) => i >= 0)
-      indices.forEach((idx) => { items[idx] = { ...items[idx], status: 'done' } })
+      indices.forEach((idx) => { items[idx] = { ...items[idx], status: event.status || 'done', error_type: event.error_type || null } })
       break
     }
     case 'sub_started':
@@ -293,7 +322,17 @@ function applyEvent(event) {
       break
     case 'sub_done': {
       const idx = items.findIndex(i => i.agent_id === event.agent_id)
-      if (idx !== -1) items[idx] = { ...items[idx], status: 'done' }
+      if (idx !== -1) items[idx] = { ...items[idx], status: event.status || 'done', error_type: event.error_type || null }
+      break
+    }
+    case 'analysis_error': {
+      const errorType = event.error_type || 'unknown'
+      const fallback = errorMessages.unknown
+      analysisError.value = {
+        ...(errorMessages[errorType] || fallback),
+        description: event.message || (errorMessages[errorType] || fallback).description
+      }
+      allYearsAnalysisEnded.value = true
       break
     }
     case 'stream_end':
@@ -688,6 +727,9 @@ onUnmounted(() => {
   font-size: 13px;
   color: var(--text-tertiary);
   margin: 0;
+}
+.analysis-error {
+  margin-bottom: 12px;
 }
 .agent-trace-list {
   display: flex;

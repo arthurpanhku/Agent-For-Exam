@@ -119,12 +119,15 @@ class ChatService {
     return response
   }
   
-  async saveMessage(conversationId, query, answer, toolCalls = null, streamItems = null, citationAnalysis = null) {
+  async saveMessage(conversationId, query, answer, toolCalls = null, streamItems = null, citationAnalysis = null, queryMode = null) {
     const payload = {
       query,
       answer,
       tool_calls: toolCalls,
       stream_items: streamItems
+    }
+    if (queryMode != null) {
+      payload.query_mode = queryMode
     }
     if (citationAnalysis != null) {
       payload.citation_analysis = citationAnalysis
@@ -153,5 +156,4 @@ class ChatService {
 }
 
 export default new ChatService()
-
 

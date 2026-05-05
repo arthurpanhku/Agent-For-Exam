@@ -624,6 +624,7 @@ class DocMessageRequest(BaseModel):
 class MessageRequest(BaseModel):
     query: str
     answer: str
+    query_mode: Optional[str] = None
     tool_calls: Optional[List[dict]] = None  # 工具调用信息（可选）
     stream_items: Optional[List[dict]] = None  # 流式输出项（工具调用和文本的混合顺序，可选）
     citation_analysis: Optional[Dict[str, Any]] = None  # 引用可信度与冲突提示（可选）
@@ -800,6 +801,7 @@ async def save_message(conversation_id: str, request: MessageRequest):
         conversation_id, 
         request.query, 
         request.answer,
+        query_mode=request.query_mode,
         tool_calls=request.tool_calls,
         stream_items=request.stream_items,
         citation_analysis=request.citation_analysis,

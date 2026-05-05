@@ -13,6 +13,14 @@ from app.config import get_logger
 router = APIRouter(tags=["graph"])
 logger = get_logger("app.graph")
 
+GLOBAL_SYNTHESIS_WARNING = "[synthesis mode - verify against sources]"
+
+
+def _is_definition_query(query: str) -> bool:
+    q = (query or "").lower()
+    keywords = ("what is", "define", "definition of", "formula for", "公式", "定义", "是什么")
+    return any(keyword in q for keyword in keywords)
+
 # 请求/响应模型
 class QueryRequest(BaseModel):
     query: str
@@ -260,6 +268,8 @@ async def query_knowledge_graph(conversation_id: str, request: QueryRequest):
         )
         
         result = await service.query(conversation_id, request.query, request.mode)
+        if request.mode == "global":
+            result = f"{GLOBAL_SYNTHESIS_WARNING}\n\n{result}"
         
         return QueryResponse(
             conversation_id=conversation_id,
@@ -372,6 +382,12 @@ async def query_knowledge_graph_stream(conversation_id: str, request: QueryReque
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"无效的查询模式: {request.mode}，支持的模式: {', '.join(valid_modes + ['agent'])}"
         )
+
+    global_mode_warning = None
+    if request.mode == "global":
+        global_mode_warning = GLOBAL_SYNTHESIS_WARNING
+        if _is_definition_query(request.query):
+            global_mode_warning += " 建议定义/公式类问题切换到 Local 模式核对原文。"
     
     # 第一层：快速检查是否有文档（无需初始化 LightRAG）
     if not service.check_has_documents_fast(conversation_id):
@@ -468,6 +484,10 @@ async def query_knowledge_graph_stream(conversation_id: str, request: QueryReque
     # 第二层：有文档，进入正常流程（包含知识图谱检查）
     async def stream_generator():
         try:
+            if global_mode_warning:
+                yield f"{json.dumps({'warning': global_mode_warning})}\n"
+                newline_text = "\n\n"
+                yield f"{json.dumps({'response': newline_text})}\n"
             # 步骤1：查询前检测知识图谱是否为空
             kg_empty_before, error_msg = await service.check_knowledge_graph_empty(conversation_id)
             
@@ -681,4 +701,3 @@ async def query_knowledge_graph_stream(conversation_id: str, request: QueryReque
             "X-Accel-Buffering": "no"
         }
     )
-

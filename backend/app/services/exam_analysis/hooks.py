@@ -64,6 +64,8 @@ class ExamAnalysisAgentHooks:
                 "type": "lead_done",
                 "agent_id": lead_done_trace.get("agent_id"),
                 "label": lead_done_trace.get("label"),
+                "status": lead_done_trace.get("status"),
+                "error_type": lead_done_trace.get("error_type"),
             },
         )
 
@@ -86,8 +88,16 @@ class ExamAnalysisAgentHooks:
         thinking_blocks = sub_final_trace.get("thinking_blocks") or []
         tool_calls = sub_final_trace.get("tool_calls") or []
         status = sub_final_trace.get("status")
-        TraceStorage.update_sub_trace(conversation_id, agent_id, thinking_blocks, tool_calls, status=status)
-        event_emit(conversation_id, {"type": "sub_done", "agent_id": agent_id})
+        error_type = sub_final_trace.get("error_type")
+        TraceStorage.update_sub_trace(
+            conversation_id,
+            agent_id,
+            thinking_blocks,
+            tool_calls,
+            status=status,
+            error_type=error_type,
+        )
+        event_emit(conversation_id, {"type": "sub_done", "agent_id": agent_id, "status": status, "error_type": error_type})
 
 
 class ExamAnalysisToolHooks:
@@ -177,4 +187,3 @@ class DefaultExamAnalysisHooks:
 
 # 默认单例实例，供 exam_analysis 模块内部直接使用
 default_hooks = DefaultExamAnalysisHooks()
-

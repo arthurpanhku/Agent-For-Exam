@@ -372,6 +372,7 @@ class ConversationService:
         conversation_id: str,
         query: str,
         answer: str,
+        query_mode: Optional[str] = None,
         tool_calls: Optional[List[dict]] = None,
         stream_items: Optional[List[dict]] = None,
         citation_analysis: Optional[dict] = None,
@@ -420,6 +421,8 @@ class ConversationService:
             "content": query,
             "timestamp": datetime.utcnow().isoformat() + "Z"
         }
+        if query_mode:
+            user_message["query_mode"] = query_mode
         messages.append(user_message)
         
         # 如果有工具调用，先添加 assistant 消息（包含 tool_calls）
@@ -561,4 +564,3 @@ class ConversationService:
             json.dump(truncated_messages, f, ensure_ascii=False, indent=2)
         
         return True
-

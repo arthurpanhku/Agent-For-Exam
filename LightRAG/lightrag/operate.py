@@ -57,6 +57,15 @@ from .kg.shared_storage import get_storage_keyed_lock
 import time
 from dotenv import load_dotenv
 
+try:
+    from app.utils.text_cleaner import protect_math_expressions, restore_math_placeholders
+except Exception:
+    def protect_math_expressions(text: str) -> tuple[str, dict[str, str]]:
+        return text, {}
+
+    def restore_math_placeholders(text: str, math_map: dict[str, str]) -> str:
+        return text
+
 # use the .env that is inside the current folder
 # allows to use different .env file for each lightrag instance
 # the OS environment variables take precedence over the .env file
@@ -2086,15 +2095,16 @@ async def extract_entities(
 
         # Get initial extraction
         prompt_start_time = time.time()
+        protected_content, math_expression_map = protect_math_expressions(content)
         entity_extraction_system_prompt = PROMPTS[
             "entity_extraction_system_prompt"
-        ].format(**{**context_base, "input_text": content})
+        ].format(**{**context_base, "input_text": protected_content})
         entity_extraction_user_prompt = PROMPTS["entity_extraction_user_prompt"].format(
-            **{**context_base, "input_text": content}
+            **{**context_base, "input_text": protected_content}
         )
         entity_continue_extraction_user_prompt = PROMPTS[
             "entity_continue_extraction_user_prompt"
-        ].format(**{**context_base, "input_text": content})
+        ].format(**{**context_base, "input_text": protected_content})
         prompt_prep_time = time.time() - prompt_start_time
         logger.info(f"[实体提取] Prompt 准备完成，耗时: {prompt_prep_time:.2f}秒")
         
@@ -2127,6 +2137,7 @@ async def extract_entities(
                 cache_keys_collector=cache_keys_collector,
             )
             llm_call_time = time.time() - llm_call_start_time
+            final_result = restore_math_placeholders(final_result, math_expression_map)
             logger.info(f"[实体提取] 第一次 LLM 调用完成，耗时: {llm_call_time:.2f}秒")
             logger.info(f"[实体提取] LLM 响应长度: {len(final_result)} 字符")
             logger.info(f"[实体提取] LLM 响应预览 (前300字符): {final_result[:300]}...")
@@ -2189,6 +2200,7 @@ async def extract_entities(
                     cache_keys_collector=cache_keys_collector,
                 )
                 glean_time = time.time() - glean_start_time
+                glean_result = restore_math_placeholders(glean_result, math_expression_map)
                 logger.info(f"[实体提取] 第二次 LLM 调用 (Gleaning) 完成，耗时: {glean_time:.2f}秒")
                 logger.info(f"[实体提取] Gleaning 响应长度: {len(glean_result)} 字符")
                 _log_phase_metrics(
