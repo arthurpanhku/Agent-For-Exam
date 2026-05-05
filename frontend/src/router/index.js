@@ -11,6 +11,11 @@ const router = createRouter({
       component: HomeView
     },
     {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: () => import('../modules/analytics/components/DashboardView.vue')
+    },
+    {
       path: '/dataset-evaluation',
       name: 'dataset-evaluation',
       component: () => import('../views/DatasetEvaluationView.vue')
@@ -19,6 +24,11 @@ const router = createRouter({
       path: '/subject/:id',
       name: 'subject-docs',
       component: SubjectDocsView
+    },
+    {
+      path: '/subject/:id/flashcards',
+      name: 'flashcards',
+      component: () => import('../modules/flashcards/components/FlashcardView.vue')
     },
     {
       path: '/subject/:subjectId/chat/:conversationId',

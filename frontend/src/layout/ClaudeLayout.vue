@@ -24,6 +24,10 @@
             <el-icon><Collection /></el-icon>
             Home
           </router-link>
+          <router-link to="/dashboard" class="nav-item" active-class="active">
+            <el-icon><TrendCharts /></el-icon>
+            Dashboard
+          </router-link>
           <router-link to="/dataset-evaluation" class="nav-item" active-class="active">
             <el-icon><Notebook /></el-icon>
             Dataset &amp; Evaluation
@@ -34,6 +38,11 @@
           <el-tooltip content="Home" placement="right" :show-after="200">
             <router-link to="/" class="nav-item-icon" active-class="active">
               <el-icon><Collection /></el-icon>
+            </router-link>
+          </el-tooltip>
+          <el-tooltip content="Dashboard" placement="right" :show-after="200">
+            <router-link to="/dashboard" class="nav-item-icon" active-class="active">
+              <el-icon><TrendCharts /></el-icon>
             </router-link>
           </el-tooltip>
           <el-tooltip content="Dataset &amp; Evaluation" placement="right" :show-after="200">
@@ -76,6 +85,16 @@
               v-if="isSubjectExpanded(subject.subject_id)"
               class="conversation-list"
             >
+              <!-- Flashcards shortcut -->
+              <router-link
+                :to="`/subject/${subject.subject_id}/flashcards`"
+                class="nav-item conversation-item subject-tool-link"
+                active-class="active"
+              >
+                <el-icon class="conv-type-icon"><Memo /></el-icon>
+                <span class="conversation-title">Flashcards</span>
+              </router-link>
+
               <div
                 v-for="conv in getConversationsBySubject(subject.subject_id)"
                 :key="conv.conversation_id"
@@ -143,7 +162,7 @@
 import { ref, watch, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { Collection, Notebook, ArrowLeft, ArrowRight, ArrowDown, MoreFilled, DataAnalysis } from '@element-plus/icons-vue'
+import { Collection, Notebook, ArrowLeft, ArrowRight, ArrowDown, MoreFilled, DataAnalysis, TrendCharts, Memo, Microphone } from '@element-plus/icons-vue'
 import { useSubjectStore } from '../modules/subjects/store/subjectStore'
 import { useConversationStore } from '../modules/chat/store/conversationStore'
 
@@ -477,6 +496,23 @@ watch(
   padding-left: 28px;
   display: flex;
   align-items: center;
+  text-decoration: none;
+  color: var(--text-secondary);
+}
+
+.subject-tool-link {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.subject-tool-link:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+  color: var(--text-primary);
+}
+
+.subject-tool-link.active {
+  background-color: rgba(218, 119, 86, 0.08);
+  color: var(--color-accent);
 }
 
 .conversation-item.active {

@@ -10,9 +10,18 @@
         <p class="page-subtitle">Select a subject to manage documents or start a conversation.</p>
       </div>
       <div class="header-right">
-        <el-button 
-          type="primary" 
-          size="large" 
+        <el-button
+          size="large"
+          round
+          class="dashboard-btn"
+          @click="$router.push('/dashboard')"
+        >
+          <el-icon><TrendCharts /></el-icon>
+          Dashboard
+        </el-button>
+        <el-button
+          type="primary"
+          size="large"
           round
           class="new-subject-btn"
           @click="createNewSubject"
@@ -62,6 +71,16 @@
           </div>
 
           <div class="card-actions" @click.stop>
+            <el-tooltip content="Flashcards" placement="top">
+              <el-button
+                link
+                type="primary"
+                class="more-btn"
+                @click.stop="$router.push(`/subject/${subject.subject_id}/flashcards`)"
+              >
+                <el-icon><Memo /></el-icon>
+              </el-button>
+            </el-tooltip>
             <el-dropdown trigger="click" @command="(cmd) => handleSubjectCommand(cmd, subject)" @click.stop>
               <el-button link type="info" class="more-btn">
                 <el-icon><MoreFilled /></el-icon>
@@ -88,7 +107,7 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Collection, Plus, MoreFilled } from '@element-plus/icons-vue'
+import { Collection, Plus, MoreFilled, TrendCharts, Memo } from '@element-plus/icons-vue'
 import { useSubjectStore } from '../modules/subjects/store/subjectStore'
 import { useDocumentStore } from '../modules/documents/store/documentStore'
 
@@ -216,6 +235,16 @@ const handleSubjectCommand = async (action, subject) => {
 .new-subject-btn:hover {
   background-color: var(--color-accent-hover);
   border-color: var(--color-accent-hover);
+}
+
+.dashboard-btn {
+  border-color: var(--border-subtle);
+}
+
+.header-right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 /* Grid */
